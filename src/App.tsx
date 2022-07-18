@@ -149,7 +149,7 @@ function App() {
   }, []);
 
   return (
-    <div className="relative flex  w-screen flex-col" >
+    <div className=" bg-zinc-900 relative flex  w-screen flex-col" >
 
       <div data-tauri-drag-region className="flex  w-screen right-0 left-0 justify-end bg-zinc-900">
         <button onClick={minimize} className="bg-zinc-900 hover:bg-zinc-600 rounded-none border-none focus:outline-none bg-center" > <MdMinimize className='flex-1'/> </button>
@@ -159,10 +159,10 @@ function App() {
 
       <div className="relative flex-1 flex flex-row">
         <div className="z-10 h-screen bg-zinc-900">
-          <button id="fileBrowser" onClick={showFileBrowserLeaf} className="text-lg text-zinc-500 hover:text-white bg-zinc-900 hover:bg-zinc-900 rounded-none border-none focus:outline-none flex-1 "> {showFileLeaf ? <MdMenuOpen /> : <MdMenu />} </button>
+          <button id="fileBrowser" onClick={showFileBrowserLeaf} className="text-lg text-zinc-500 hover:text-white bg-zinc-900 hover:bg-zinc-900 rounded-none border-none focus:outline-none flex-1 ease-in-out duration-200"> {showFileLeaf ? <MdMenuOpen /> : <MdMenu />} </button>
         </div>
         <div style={showFileLeaf ? { width: folderLeafWidth + 'px' } : { width: '0px' }} className=" z-0 relative h-screen flex flex-col overflow-hidden resize-x" id='FileBrowserLeaf'>
-          <div className="  w-full justify-center flex bg-zinc-800 p-3">
+          <div className="rounded-tl-2xl w-full justify-center flex bg-zinc-800 p-3">
             <button className="px-4 py-1 text-2xl  bg-zinc-800 text-zinc-500 font-semibold rounded-none border-none hover:text-white   focus:outline-none "><MdOutlineInsertDriveFile/></button>
             <button className="px-4 py-1 text-2xl bg-zinc-800 text-zinc-500 font-semibold rounded-none border-none hover:text-white   focus:outline-none "><MdOutlineCreateNewFolder/></button>
           </div>
@@ -172,12 +172,12 @@ function App() {
           </div>
 
         </div>
-        <div id="resizeBar" className="w-1 hover:bg-sky-400 cursor-col-resize ease-in-out duration-300 delay-50">
+        <div id="resizeBar" className={showFileLeaf ? "w-1 bg-zinc-700 hover:bg-sky-400 cursor-col-resize ease-in-out duration-300 delay-50" : " rounded-tl-2xl w-1 bg-zinc-700 hover:bg-sky-400 cursor-col-resize ease-in-out duration-300 delay-50" }>
 
         </div>
-        <div className="max-w-md mx-auto bg-white rounded-xl shadow-md overflow-hidden md:max-w-2xl">
+        <div className=" max-w-md mx-auto bg-white rounded-xl shadow-md overflow-hidden md:max-w-2xl">
         </div>
-        <div id="contentPane" className='flex flex-1'>
+        <div id="contentPane" className='bg-zinc-700 flex flex-1'>
           <div className='flex-1'>
             <a target="_blank">
               <img src="/vite.svg" className="logo" alt="Vite logo" />
