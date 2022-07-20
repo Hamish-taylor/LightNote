@@ -1,16 +1,21 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import './App.css'
 
 import { appWindow } from '@tauri-apps/api/window'
 import { MdClear, MdMinimize, MdReadMore, MdKeyboardArrowLeft, MdMenuOpen, MdMenu, MdFolderOpen, MdOutlineInsertDriveFile, MdOutlineCreateNewFolder } from 'react-icons/md'
 import { IoMdArrowDropright, IoMdArrowDropdown } from "react-icons/io";
 import { VscChromeMaximize } from 'react-icons/vsc'
-import { readDir, BaseDirectory, FileEntry } from '@tauri-apps/api/fs';
+import { readDir, BaseDirectory, FileEntry, readTextFile, writeTextFile } from '@tauri-apps/api/fs';
 
 
-import CodeMirror from '@uiw/react-codemirror';
+import CodeMirror, { useCodeMirror } from '@uiw/react-codemirror';
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown';
 import { languages } from '@codemirror/language-data';
+import { sublime } from '@uiw/codemirror-theme-sublime';
+import { EditorView, keymap, highlightActiveLine } from '@codemirror/view'
+import { HighlightStyle, tags } from '@codemirror/highlight';
+
+
 
 
 function App() {
@@ -20,6 +25,9 @@ function App() {
   const [allPaths, setAllPaths] = useState<FileEntry[]>([])
   const [showFileLeaf, setShowFileLeaf] = useState(false)
   const [folderLeafWidth, setFolderLeafWidth] = useState(200)
+  const [currentFileContent, setCurrentFileContent] = useState('')
+  const [currentFilePath, setCurrentFilePath] = useState("")
+  const [currentFileName, setCurrentFileName] = useState("")
   //Setting the window to frameless
   appWindow.setDecorations(false);
 
@@ -31,9 +39,37 @@ function App() {
     setShowFileLeaf(!showFileLeaf);
   };
 
+  const openNewFile = (path: string, name: string) => {
+    if(name.includes(".md")) {
+      setCurrentFilePath(path);
+      readFile(path);
+      setCurrentFileName(name);
+    }
+  
+  }
+
+  const syntaxHighlighting = HighlightStyle.define([
+    {
+      tag: tags.heading1,
+      fontSize: '1.6em',
+      fontWeight: 'bold'
+    },
+    {
+      tag: tags.heading2,
+      fontSize: '1.4em',
+      fontWeight: 'bold'
+    },
+    {
+      tag: tags.heading3,
+      fontSize: '1.2em',
+      fontWeight: 'bold'
+    }
+  ])
+  
+  
   const readFiles = async () => {
     const entries = await readDir('C:/Users/Hamis/Documents/NotesCopy', { recursive: true });
-    setAllPaths(allPaths.concat(entries));
+    setAllPaths(entries);
     // function processEntries(entries: any) {
     //   for (const entry of entries) {
     //     console.log(`Entry: ${entry.path}`);
@@ -45,8 +81,15 @@ function App() {
     // processEntries(entries);
   }
 
+  const readFile = async (path: string) => {
+    const file = await readTextFile(path);
+    console.log(file);
+    setCurrentFileContent(file);
+  }
+
   const handleClick = (e: any) => {
-    let sib = document.getElementById(e.target.id)!.nextElementSibling! as HTMLElement;
+    let sib = document.getElementById(e)!.nextElementSibling! as HTMLElement;
+
     if (sib.style.display === "none") {
 
       sib.style.display = "block"
@@ -78,9 +121,9 @@ function App() {
           }
           else {
             return (
-              <div className='bg-zinc-800'>
-                <button id={entry.path} onClick={handleClick} className='text-ellipsis overflow-hidden bg-zinc-800 flex w-full outline-none border-none rounded-none focus:rounded-none focused hover:bg-zinc-600 focus:outline-none '>{entry.name}{entry.children ? <IoMdArrowDropdown className='place-self-center' /> : null}</button>
-                <div className='pl-5 bg-zinc-800 duration-200 ease-in-out'> {entry.children ? renderFolders(entry.children) : null} </div>
+              <div className='bg-zinc-800 '>
+                <button id={entry.path} onClick={() => { handleClick(entry.path), openNewFile(entry.path, entry.name) }} className=' bg-zinc-800 flex flex-1 text-left w-full outline-none border-none rounded-none focus:rounded-none focused hover:bg-zinc-600 focus:outline-none '>{entry.name}{entry.children ? <IoMdArrowDropdown className='place-self-center' /> : null}</button>
+                <div style={{ display: "none" }} className='pl-5 bg-zinc-800 duration-200 ease-in-out '> {entry.children ? renderFolders(entry.children) : null} </div>
               </div>
             )
           }
@@ -172,29 +215,31 @@ function App() {
 
   }, []);
 
-  const handleDocChange = useCallback((newDoc: any) => {
-    setDoc(newDoc);
-    //openedFile !== "" && !saving && newDoc !== doc? 
-    //window.electron.ipcRenderer.saveFile(openedFile, newDoc)  : null
-  }, [doc])
+  const onChange = useCallback(async (value: any, viewUpdate: any) => {
+    console.log('value:', value);
+    //save the file
+    await writeTextFile(currentFilePath, value);
+  }, []);
 
   return (
-    <div className=" bg-zinc-900 relative flex flex-col w-screen" >
-     <div data-tauri-drag-region className="flex  w-screen right-0 left-0 justify-end bg-zinc-900">
-        <button onClick={minimize} className="bg-zinc-900 hover:bg-zinc-600 rounded-none border-none focus:outline-none bg-center" > <MdMinimize className='flex-1' /> </button>
-        <button onClick={maximize} className="bg-zinc-900 hover:bg-zinc-600 rounded-none border-none focus:outline-none"> <VscChromeMaximize /> </button>
-        <button onClick={close} className="bg-zinc-900 hover:bg-red-600 rounded-none border-none focus:outline-none"> <MdClear /> </button >
+    <div className=" bg-zinc-900 relative flex flex-col w-screen h-screen overflow-hidden" >
+      <div data-tauri-drag-region className="flex  w-screen right-0 left-0 justify-end bg-zinc-900 text-center" >
+      <span data-tauri-drag-region className='absolute text-center justify-center place-self-center w-full cursor-default  text-xs  z-10'>{currentFileName}</span>
+        <button onClick={minimize} className="bg-zinc-900 hover:bg-zinc-600 rounded-none border-none focus:outline-none bg-center z-20" > <MdMinimize className='flex-1' /> </button>
+        <button onClick={maximize} className="bg-zinc-900 hover:bg-zinc-600 rounded-none border-none focus:outline-none z-20"> <VscChromeMaximize /> </button>
+        <button onClick={close} className="bg-zinc-900 hover:bg-red-600 rounded-none border-none focus:outline-none z-20"> <MdClear /> </button >
       </div>
-      <div className="relative flex-1 flex flex-row">
+
+      <div className=" flex flex-row overflow-hidden">
         <div className="z-10 h-screen bg-zinc-900">
           <button id="fileBrowser" onClick={showFileBrowserLeaf} className="text-lg text-zinc-500 hover:text-white bg-zinc-900 hover:bg-zinc-900 rounded-none border-none focus:outline-none flex-1 ease-in-out duration-200"> {showFileLeaf ? <MdMenuOpen /> : <MdMenu />} </button>
         </div>
-        <div style={showFileLeaf ? { width: folderLeafWidth + 'px' } : { width: '0px' }} className=" z-0 relative h-screen flex flex-col overflow-hidden resize-x" id='FileBrowserLeaf'>
-          <div className="rounded-tl-xl w-full justify-center flex bg-zinc-800 p-3">
+        <div style={showFileLeaf ? { width: folderLeafWidth + 'px' } : { width: '0px' }} className=" z-0 relative h-full flex flex-col overflow-hidden" id='FileBrowserLeaf'>
+          <div className="rounded-tl-lg w-full justify-center flex bg-zinc-800 p-3">
             <button className="px-4 py-1 text-2xl  bg-zinc-800 text-zinc-500 font-semibold rounded-none border-none hover:text-white   focus:outline-none "><MdOutlineInsertDriveFile /></button>
             <button className="px-4 py-1 text-2xl bg-zinc-800 text-zinc-500 font-semibold rounded-none border-none hover:text-white   focus:outline-none "><MdOutlineCreateNewFolder /></button>
           </div>
-          <div className='bg-zinc-800 w-full  id="file-container  flex-1 overflow-auto pb-10 text-sm'>
+          <div className='bg-zinc-800 w-full h-full overflow-auto pb-10 text-sm text-ellipsis'>
             {renderFolders(allPaths)
             }
           </div>
@@ -203,20 +248,26 @@ function App() {
         <div id="resizeBar" className={showFileLeaf ? "w-1 bg-zinc-700 hover:bg-sky-400 cursor-col-resize ease-in-out duration-300 delay-50" : " rounded-tl-2xl w-1 bg-zinc-700 hover:bg-sky-400 cursor-col-resize ease-in-out duration-300 delay-50"}>
 
         </div>
-        <div id="contentPane" className='bg-zinc-700 flex-shrink-0 flex-grow-0 flex-1' >
-          <CodeMirror 
-          value={"j"} 
+        <div id="contentPane" className='bg-zinc-700 w-full h-full overflow-auto flex-1 content-center' >
+          <CodeMirror
+            value={currentFileContent}
+            onChange={onChange}
             height='100%'
-          extensions={[
-            markdown({ base: markdownLanguage, codeLanguages: languages }
-          )]} 
+            width='100%'
+            theme={sublime}
+            extensions={[
+              //syntaxHighlighting,
+              EditorView.lineWrapping,
+              markdown({ base: markdownLanguage, codeLanguages: languages }
+              )]}
+            className="h-full w-full"
           />
-          
+
         </div>
 
-      </div> 
+      </div>
     </div>
-    
+
   )
 }
 
