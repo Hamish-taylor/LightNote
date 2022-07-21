@@ -2,7 +2,7 @@
 A light-weight note taking application written using Tauri, React, and Vite.
 Currently the application is focused on just Markdown editing, as such it can only currently open .md files.
 
-#IMPORTANT INFORMATION
+# IMPORTANT INFORMATION
 This is in very early stages of development!
 The application is hardcoded to default to a directory on my computer, withough changing the default directory it will not run on your machine 
 
