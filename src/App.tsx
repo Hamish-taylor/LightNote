@@ -24,10 +24,11 @@ function App() {
   //const [mainFolder, setMainFolder] = useState<folder>(new folder({ name: "Main", path: "C:/Users/Hamis/Documents/NotesCopy" }))
   const [allPaths, setAllPaths] = useState<FileEntry[]>([])
   const [showFileLeaf, setShowFileLeaf] = useState(false)
-  const [folderLeafWidth, setFolderLeafWidth] = useState(200)
+  const [folderLeafWidth, setFolderLeafWidth] = useState(300)
   const [currentFileContent, setCurrentFileContent] = useState('')
   const [currentFilePath, setCurrentFilePath] = useState("")
   const [currentFileName, setCurrentFileName] = useState("")
+  const [wordCount, setWordCount] = useState(0)
   //Setting the window to frameless
   appWindow.setDecorations(false);
 
@@ -85,6 +86,14 @@ function App() {
     const file = await readTextFile(path);
     console.log(file);
     setCurrentFileContent(file);
+  }
+
+  const countWords = (str: string) => {
+    var count = 0;
+    str.split(/\s+/).forEach((str) => {
+      str.length > 0 ? count++ : null
+    });
+    setWordCount(count);
   }
 
   const handleClick = (e: any) => {
@@ -203,7 +212,7 @@ function App() {
       leftWidth = parseInt(getComputedStyle(leftSide, '').width);
       if (leftWidth < 4) {
         setShowFileLeaf(false);
-        setFolderLeafWidth(200);
+        setFolderLeafWidth(300);
       } else {
         setFolderLeafWidth(leftWidth);
         setShowFileLeaf(true);
@@ -218,6 +227,7 @@ function App() {
   const onChange = useCallback(async (value: any, viewUpdate: any) => {
     console.log('value:', value);
     //save the file
+    countWords(value);
     await writeTextFile(currentFilePath, value);
   }, []);
 
@@ -248,7 +258,7 @@ function App() {
         <div id="resizeBar" className={showFileLeaf ? "w-1 bg-zinc-700 hover:bg-sky-400 cursor-col-resize ease-in-out duration-300 delay-50" : " rounded-tl-2xl w-1 bg-zinc-700 hover:bg-sky-400 cursor-col-resize ease-in-out duration-300 delay-50"}>
 
         </div>
-        <div id="contentPane" className='bg-zinc-700 w-full h-full overflow-auto flex-1 content-center' >
+        <div id="contentPane" className='bg-zinc-700 w-full h-full overflow-auto flex-1 content-center ' >
           <CodeMirror
             value={currentFileContent}
             onChange={onChange}
@@ -260,11 +270,14 @@ function App() {
               EditorView.lineWrapping,
               markdown({ base: markdownLanguage, codeLanguages: languages }
               )]}
-            className="h-full w-full"
+            className="h-full w-full bg-zinc-700"
           />
 
         </div>
 
+      </div>
+      <div data-tauri-drag-region className="flex  w-screen h-20 justify-end bg-zinc-700 text-center" >
+      <span data-tauri-drag-region className='text-center  place-self-center  cursor-default  text-s  z-10 mr-8'> Words: {wordCount}</span>
       </div>
     </div>
 
