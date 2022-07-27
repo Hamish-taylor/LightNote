@@ -19,3 +19,11 @@
   filter: drop-shadow(0 0 2em #61dafbaa);
 }
 
+.renaming {
+  border-color: aqua;
+  background-color: black;
+}
+
+.active {
+  background-color: black;
+}
