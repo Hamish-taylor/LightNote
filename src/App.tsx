@@ -4,18 +4,15 @@ import './App.css'
 import { appWindow } from '@tauri-apps/api/window'
 import { MdClear, MdMinimize, MdReadMore, MdKeyboardArrowLeft, MdMenuOpen, MdMenu, MdFolderOpen, MdOutlineInsertDriveFile, MdOutlineCreateNewFolder } from 'react-icons/md'
 import { IoMdArrowDropright, IoMdArrowDropdown } from "react-icons/io";
-import { VscChromeMaximize, VscGear, VscEdit } from 'react-icons/vsc'
-import { readDir, BaseDirectory, FileEntry, readTextFile, writeTextFile, renameFile, createDir } from '@tauri-apps/api/fs';
+import { VscChromeMaximize, VscGear, VscEdit, VscTrash } from 'react-icons/vsc'
+import { readDir, BaseDirectory, FileEntry, readTextFile, writeTextFile, renameFile, createDir, removeDir, removeFile } from '@tauri-apps/api/fs';
 
 
-import CodeMirror, { useCodeMirror } from '@uiw/react-codemirror';
-import { markdown, markdownLanguage } from '@codemirror/lang-markdown';
-import { languages } from '@codemirror/language-data';
-import { sublime } from '@uiw/codemirror-theme-sublime';
-import { EditorView, keymap, highlightActiveLine } from '@codemirror/view'
-import { HighlightStyle, tags } from '@codemirror/highlight';
 
+import { invoke } from '@tauri-apps/api';
 
+import Editor from './Editor';
+import SideBar from './SideBar';
 
 
 function App() {
@@ -33,7 +30,7 @@ function App() {
   const [wordCount, setWordCount] = useState(0)
   const [settingsModal, setSettingsModal] = useState(false)
   const [settings, setSettings] = useState({ editorWidth: 700 })
-
+  const [deleting, setDeleting] = useState("")
 
   const [edit, setEdit] = useState(false)
 
@@ -50,6 +47,8 @@ function App() {
   const [showEditorContext, setShowEditorContext] = useState(false);
   const [showFileContext, setShowFileContext] = useState(false);
   const [contextID, setContextID] = useState("");
+
+
 
   const createNewFile = async () => {
     let num = 0
@@ -198,6 +197,7 @@ function App() {
     return "folder";
   }
   const showFileBrowserLeaf = () => {
+    console.log(!showFileLeaf)
     setShowFileLeaf(!showFileLeaf);
   };
 
@@ -205,6 +205,13 @@ function App() {
     setSettingsModal(!settingsModal);
   }
 
+  useEffect(() => {
+    const elem = document.getElementById("FileBrowserLeaf")!
+    elem.classList.add("transition-all")
+    elem.addEventListener('transitionend', function (event) {
+      elem.classList.remove("transition-all")
+    }, false);
+  }, [showFileLeaf])
 
   const openNewFile = (path: string, name: string) => {
     if (name.includes(".md")) {
@@ -222,37 +229,35 @@ function App() {
 
   useEffect(() => {
     if (currentFilePath != "" && currentFilePath.includes(".md")) {
+      const elem =  document.getElementById(currentFilePath)!
+      if(elem) {
       document.getElementById(currentFilePath)!.classList.add("active")
       readFile(currentFilePath);
+      }
     }
-  }, [currentFilePath]);
+  }, [document.getElementById(currentFilePath)]);
 
-
+  const removeHighlight = () => {
+    if (currentFilePath != "" && currentFilePath.includes(".md")) {
+      document.getElementById(currentFilePath)!.classList.remove("active")
+    }
+    setCurrentFilePath("")
+    setCurrentFileName("")
+  }
 
   useEffect(() => {
-    if (oldFilePath != "" && oldFilePath.includes(".md")) {
+    if (oldFilePath != "" && oldFilePath.includes(".md") && currentFilePath != oldFilePath) {
       document.getElementById(oldFilePath)!.classList.remove("active")
       console.log("old file path " + oldFilePath)
     }
   }, [oldFilePath]);
 
-  const syntaxHighlighting = HighlightStyle.define([
-    {
-      tag: tags.heading1,
-      fontSize: '1.6em',
-      fontWeight: 'bold'
-    },
-    {
-      tag: tags.heading2,
-      fontSize: '1.4em',
-      fontWeight: 'bold'
-    },
-    {
-      tag: tags.heading3,
-      fontSize: '1.2em',
-      fontWeight: 'bold'
+  
+  useEffect(() => {
+    if (renaming) {
+      rename()
     }
-  ])
+  }), [allPaths]
 
 
   const readFiles = async () => {
@@ -276,6 +281,7 @@ function App() {
 
   const handleClick = (e: any) => {
     let sib = document.getElementById(e)!.nextElementSibling! as HTMLElement;
+
 
     if (sib.style.display === "none") {
 
@@ -482,6 +488,26 @@ function App() {
   //   };
 
   // }, []);
+  const deleteFile = async (path: string) => {
+    const p = path.replace(":name", "")
+    if(currentFilePath == p){
+      removeHighlight();
+      setCurrentFilePath("");
+      setCurrentFileName("");
+      setOldFilePath("");
+      setCurrentFileContent("");
+    }
+    if(isFileOrFolder(p) == "file"){
+      await invoke('deleteFile',{path : p});
+    }
+    else if (isFileOrFolder(p) == "folder") {
+      await invoke('deleteDir',{path : p});
+    }
+
+    //unselect the file
+  
+    await readFiles();
+  }
 
   const onChange = useCallback(async (value: any, viewUpdate: any) => {
     //save the file
@@ -500,6 +526,7 @@ function App() {
           }}
         >
           <button className='flex text-center align-middle justify-center' onClick={() => { setRenaming(contextID), rename() }}><VscEdit className='text-s self-center' />Rename</button>
+          <button  className='flex text-center align-middle justify-center' onClick={() => { deleteFile(contextID)}}><VscTrash className='text-s self-center' />Delete</button>
         </ul>
       ) : (
         <> </>
@@ -513,7 +540,8 @@ function App() {
             left: anchorPoint.x
           }}
         >
-          <button onClick={() => { setRenaming(contextID), rename() }}><VscEdit />Rename</button>
+          <button  className='flex text-center align-middle justify-center' onClick={() => { setRenaming(contextID), rename() }}><VscEdit className='text-s self-center' />Rename</button>
+          <button  className='flex text-center align-middle justify-center' onClick={() => { deleteFile(contextID)}}><VscTrash className='text-s self-center' />Delete</button>
         </ul>
       ) : (
         <> </>
@@ -539,12 +567,12 @@ function App() {
           </div>
         </div>
         : null}
-      <div className="z-0 flex flex-row overflow-hidden">
-        <div className="justify-between flex flex-col z-10 h-full bg-zinc-900">
+      <div className="z-0 flex flex-row h-full overflow-hidden">
+        {/* <div className="justify-between flex flex-col z-10 h-full bg-zinc-900">
           <button id="fileBrowser" onClick={showFileBrowserLeaf} className="text-lg text-zinc-500 hover:text-white bg-zinc-900 hover:bg-zinc-900 rounded-none border-none focus:outline-none ease-in-out duration-200"> {showFileLeaf ? <MdMenuOpen /> : <MdMenu />} </button>
           <button id="fileBrowser" onClick={showSettingsModal} className='text-lg text-zinc-500 hover:text-white bg-zinc-900 hover:bg-zinc-900 rounded-none border-none focus:outline-none ease-in-out duration-200'> {showFileLeaf ? <VscGear /> : <VscGear />} </button>
-
-        </div>
+        </div> */}
+        <SideBar showFileBrowserLeaf={showFileBrowserLeaf} showFileLeaf={showFileLeaf} showSettingsModal={showSettingsModal}/>
         <div style={showFileLeaf ? { width: folderLeafWidth + 'px' } : { width: '0px' }} className=" z-0 relative h-full flex max-w-[80%] flex-col overflow-hidden" id='FileBrowserLeaf'>
           <div className="rounded-tl-lg w-full justify-center flex bg-zinc-800 p-3">
             <button onClick={createNewFile} className="px-4 py-1 text-2xl  bg-zinc-800 text-zinc-500 font-semibold rounded-none border-none hover:text-white   focus:outline-none "><MdOutlineInsertDriveFile /></button>
@@ -560,31 +588,10 @@ function App() {
 
         </div>
         <div id="contentPane" className='bg-zinc-700 w-full h-full overflow-auto flex-1 place-items-center ' >
-
-
-
-
-          <CodeMirror
-            value={currentFileContent}
-            onChange={onChange}
-            height='100%'
-            width='100%'
-            theme={sublime}
-            extensions={[
-              //syntaxHighlighting,
-              EditorView.lineWrapping,
-              markdown({ base: markdownLanguage, codeLanguages: languages }
-              )]}
-            className="h-full  max-w-[700px] m-auto flex   bg-zinc-700 place-self-center"
-            id='codeMirror'
-          >
-            {/* <div id="EditorResizeBar" className={showFileLeaf ? "w-1  bg-zinc-700 hover:bg-sky-400 cursor-col-resize ease-in-out duration-300 delay-50" : " rounded-tl-2xl w-1 float-right  h-full bg-zinc-700 hover:bg-sky-400 cursor-col-resize ease-in-out duration-300 delay-50"}></div> */}
-          </CodeMirror>
-
+          <Editor onChange={onChange} currentFileContent={currentFileContent} />
         </div>
-
       </div>
-      <div data-tauri-drag-region className="flex  w-screen h-20 justify-end bg-zinc-700 text-center" >
+      <div data-tauri-drag-region className="flex  w-screen h-8 justify-end bg-zinc-700 text-center" >
         <span data-tauri-drag-region className='text-center  place-self-center  cursor-default  text-s  z-10 mr-8'> Words: {wordCount}</span>
       </div>
     </div>
@@ -593,3 +600,4 @@ function App() {
 }
 
 export default App
+
