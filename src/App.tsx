@@ -13,6 +13,7 @@ import { invoke } from '@tauri-apps/api';
 
 import Editor from './Editor';
 import SideBar from './SideBar';
+import FileTree from './FileTree';
 
 
 function App() {
@@ -123,10 +124,11 @@ function App() {
 
   useEffect(() => {
     document.addEventListener("click", handleContextClick);
-
+    //@ts-ignore
     document.addEventListener("contextmenu", handleContextMenu);
     return () => {
       document.removeEventListener("click", handleContextClick);
+      //@ts-ignore
       document.removeEventListener("contextmenu", handleContextMenu);
     };
   });
@@ -191,10 +193,13 @@ function App() {
 
 
   const isFileOrFolder = (path: string) => {
+    const re = new RegExp("[.][a-z]*");
     if (path.endsWith(".md")) {
       return "file";
+    } else if (re.test(path)) {
+    return "none";
     }
-    return "folder";
+    return 'folder'
   }
   const showFileBrowserLeaf = () => {
     console.log(!showFileLeaf)
@@ -229,10 +234,10 @@ function App() {
 
   useEffect(() => {
     if (currentFilePath != "" && currentFilePath.includes(".md")) {
-      const elem =  document.getElementById(currentFilePath)!
-      if(elem) {
-      document.getElementById(currentFilePath)!.classList.add("active")
-      readFile(currentFilePath);
+      const elem = document.getElementById(currentFilePath)!
+      if (elem) {
+        document.getElementById(currentFilePath)!.classList.add("active")
+        readFile(currentFilePath);
       }
     }
   }, [document.getElementById(currentFilePath)]);
@@ -252,7 +257,7 @@ function App() {
     }
   }, [oldFilePath]);
 
-  
+
   useEffect(() => {
     if (renaming) {
       rename()
@@ -262,6 +267,7 @@ function App() {
 
   const readFiles = async () => {
     const entries = await readDir(mainFolder, { recursive: true });
+
     setAllPaths(entries);
 
   }
@@ -315,7 +321,7 @@ function App() {
           else {
             return (
               <div className='bg-zinc-800 '>
-                <button id={entry.path} onClick={() => { handleClick(entry.path), setOldFilePath(currentFilePath), setCurrentFilePath(entry.path) }} className=' bg-zinc-800 flex flex-1 text-left w-full outline-none border-none rounded-none focus:rounded-none focused hover:bg-zinc-600 focus:outline-none '> <div id={entry.path + ":name"}>{entry.name}</div>{entry.children ? <IoMdArrowDropdown className='place-self-center' /> : null}</button>
+                {isFileOrFolder(entry.path) == "none" ? <div className="tooltip " data-tip="Invalid filetype"> <button id={entry.path}  className=' bg-zinc-800 opacity-25 flex flex-1 text-left w-full outline-none border-none rounded-none focus:rounded-none focused hover:bg-zinc-600 focus:outline-none '>    <div id={entry.path + ":name"}>{entry.name}</div>{entry.children ? <IoMdArrowDropdown className='place-self-center' /> : null}</button> </div> : <button id={entry.path} onClick={() => { handleClick(entry.path), setOldFilePath(currentFilePath), setCurrentFilePath(entry.path) }} className=' bg-zinc-800 flex flex-1 text-left w-full outline-none border-none rounded-none focus:rounded-none focused hover:bg-zinc-600 focus:outline-none '> <div id={entry.path + ":name"}>{entry.name}</div>{entry.children ? <IoMdArrowDropdown className='place-self-center' /> : null}</button>} 
                 <div style={{ display: "none" }} className='pl-5 bg-zinc-800 duration-200 ease-in-out '> {entry.children ? renderFolders(entry.children) : null} </div>
               </div>
             )
@@ -365,6 +371,12 @@ function App() {
       let newLeftWidth = ((leftWidth + dx) * 100) / resizer.parentElement!.getBoundingClientRect().width;
       if (newLeftWidth < 4) {
         newLeftWidth = 0;
+      }
+
+      if (newLeftWidth > 4) {
+        setShowFileLeaf(true);
+      } else {
+        setShowFileLeaf(false);
       }
 
       leftSide.style.width = `${newLeftWidth}%`;
@@ -490,22 +502,22 @@ function App() {
   // }, []);
   const deleteFile = async (path: string) => {
     const p = path.replace(":name", "")
-    if(currentFilePath == p){
+    if (currentFilePath == p) {
       removeHighlight();
       setCurrentFilePath("");
       setCurrentFileName("");
       setOldFilePath("");
       setCurrentFileContent("");
     }
-    if(isFileOrFolder(p) == "file"){
-      await invoke('deleteFile',{path : p});
+    if (isFileOrFolder(p) == "file") {
+      await invoke('deleteFile', { path: p });
     }
     else if (isFileOrFolder(p) == "folder") {
-      await invoke('deleteDir',{path : p});
+      await invoke('deleteDir', { path: p });
     }
 
     //unselect the file
-  
+
     await readFiles();
   }
 
@@ -516,17 +528,17 @@ function App() {
   }, [currentFilePath]);
 
   return (
-    <div className="z-0 bg-zinc-900 flex flex-col w-screen h-screen overflow-hidden" >
+    <div className="z-0 bg-zinc-900 flex flex-col w-screen h-screen overflow-hidden rounded-xl" >
       {showEditorContext ? (
         <ul
-          className="menu w-auto h-auto absolute z-50 bg-zinc-900 flex flex-col justify-between"
+          className="menu w-auto h-auto absolute z-50 bg-zinc-900 flex flex-col justify-between border-zinc-800 rounded-md"
           style={{
             top: anchorPoint.y,
             left: anchorPoint.x
           }}
         >
-          <button className='flex text-center align-middle justify-center' onClick={() => { setRenaming(contextID), rename() }}><VscEdit className='text-s self-center' />Rename</button>
-          <button  className='flex text-center align-middle justify-center' onClick={() => { deleteFile(contextID)}}><VscTrash className='text-s self-center' />Delete</button>
+          <button className='flex text-center align-middle text-sm rounded-none border-none bg-transparent hover:bg-zinc-700 mt-1' onClick={() => { setRenaming(contextID), rename() }}><VscEdit className='text-s self-center mr-1' />Rename folder</button>
+          <button className='flex text-center align-middle text-sm  rounded-none border-none bg-transparent hover:bg-zinc-700 mb-1' onClick={() => { deleteFile(contextID) }}><VscTrash className='text-s self-center  mr-1' />Delete folder</button>
         </ul>
       ) : (
         <> </>
@@ -540,8 +552,8 @@ function App() {
             left: anchorPoint.x
           }}
         >
-          <button  className='flex text-center align-middle justify-center' onClick={() => { setRenaming(contextID), rename() }}><VscEdit className='text-s self-center' />Rename</button>
-          <button  className='flex text-center align-middle justify-center' onClick={() => { deleteFile(contextID)}}><VscTrash className='text-s self-center' />Delete</button>
+          <button className='flex text-center align-middle text-sm  rounded-none border-none bg-transparent hover:bg-zinc-700 mt-1' onClick={() => { setRenaming(contextID), rename() }}><VscEdit className='text-s self-center mr-1' />Rename file</button>
+          <button className='flex text-center align-middle text-sm  rounded-none border-none bg-transparent hover:bg-zinc-700  mb-1' onClick={() => { deleteFile(contextID) }}><VscTrash className='text-s self-center  mr-1' />Delete file</button>
         </ul>
       ) : (
         <> </>
@@ -558,12 +570,30 @@ function App() {
         <div className="z-20 top-0 left-0  w-screen h-screen  absolute flex place-content-center">
           <div onClick={showSettingsModal} className="absolute z-40  bg-black opacity-50 w-full h-full">
           </div>
-          <div className=' z-50 opacity-100 relative  ml-auto mr-auto mt-auto top-0 bottom-0 mb-auto text-center left-0 right-0  w-4/5 h-4/5 bg-zinc-800'>
-            SETTINGS
-            <button onClick={showSettingsModal} className="absolute right-0 top-0 text-zinc-400 hover:text-zinc-100 bg-zinc-800 rounded-none border-none focus:outline-none z-20"> <MdClear /> </button >
+          <div className=' z-50 opacity-100 relative  ml-auto mr-auto mt-auto top-0 bottom-0 mb-auto  left-0 right-0  w-4/5 h-4/5 bg-zinc-800  rounded-xl border-zinc-900 shadow-lg'>
+            <div className='justify-center'>SETTINGS</div>
+            <button onClick={showSettingsModal} className="absolute right-0 top-0 text-zinc-400 hover:text-zinc-100 bg-transparent rounded-none border-none focus:outline-none z-20"> <MdClear /> </button >
             <br />
-            <label >Editor Width </label>
-            <input type='number' value={settings.editorWidth} onChange={(e) => { setSettings({ ...settings, editorWidth: parseInt(e.target.value) }), document.getElementById("codeMirror")!.style.maxWidth = e.target.value + 'px' }} />
+            {/* <div className="grid grid-rows-3 grid-flow-col gap-4 text-center ">
+              <div className="row-span-3 bg-gray-900 ">01</div>
+              <div className="col-span-2 bg-gray-900 ">02</div>
+              <div className="row-span-2 col-span-2 bg-gray-900 ">03</div>
+            </div> */}
+            <div className="divider"></div>
+            <div className='flex flex-row w-full  px-10'>
+              <div className=' flex-1 flex flex-col items-start'>
+                <label className='flex-1'>Editor Width  </label>
+                <label className='flex-1 text-gray-400'>The width of the editor in pixels</label>
+              </div>
+              <div className='text-end float flex-1 flex flex-col items-end'>
+                <input className='w-1/2' type='number' value={settings.editorWidth} onChange={(e) => { setSettings({ ...settings, editorWidth: parseInt(e.target.value) }), document.getElementById("codeMirror")!.style.maxWidth = e.target.value + 'px' }} />
+                <input className="range range-primary w-1/2 " type="range" min="100" max="2000" value={settings.editorWidth} onChange={(e) => { setSettings({ ...settings, editorWidth: parseInt(e.target.value) }), document.getElementById("codeMirror")!.style.maxWidth = e.target.value + 'px' }} />
+              </div>
+              <div className='pl-2'>
+                px
+              </div>
+            </div>
+            <div className="divider"></div>
           </div>
         </div>
         : null}
@@ -572,11 +602,12 @@ function App() {
           <button id="fileBrowser" onClick={showFileBrowserLeaf} className="text-lg text-zinc-500 hover:text-white bg-zinc-900 hover:bg-zinc-900 rounded-none border-none focus:outline-none ease-in-out duration-200"> {showFileLeaf ? <MdMenuOpen /> : <MdMenu />} </button>
           <button id="fileBrowser" onClick={showSettingsModal} className='text-lg text-zinc-500 hover:text-white bg-zinc-900 hover:bg-zinc-900 rounded-none border-none focus:outline-none ease-in-out duration-200'> {showFileLeaf ? <VscGear /> : <VscGear />} </button>
         </div> */}
-        <SideBar showFileBrowserLeaf={showFileBrowserLeaf} showFileLeaf={showFileLeaf} showSettingsModal={showSettingsModal}/>
+        <SideBar showFileBrowserLeaf={showFileBrowserLeaf} showFileLeaf={showFileLeaf} showSettingsModal={showSettingsModal} />
         <div style={showFileLeaf ? { width: folderLeafWidth + 'px' } : { width: '0px' }} className=" z-0 relative h-full flex max-w-[80%] flex-col overflow-hidden" id='FileBrowserLeaf'>
           <div className="rounded-tl-lg w-full justify-center flex bg-zinc-800 p-3">
             <button onClick={createNewFile} className="px-4 py-1 text-2xl  bg-zinc-800 text-zinc-500 font-semibold rounded-none border-none hover:text-white   focus:outline-none "><MdOutlineInsertDriveFile /></button>
             <button onClick={createNewFolder} className="px-4 py-1 text-2xl bg-zinc-800 text-zinc-500 font-semibold rounded-none border-none hover:text-white   focus:outline-none "><MdOutlineCreateNewFolder /></button>
+            <FileTree path={mainFolder} />
           </div>
           <div id="folderTree" className='bg-zinc-800 w-full h-full overflow-auto pb-10 text-sm text-ellipsis'>
             {renderFolders(allPaths)
@@ -591,8 +622,8 @@ function App() {
           <Editor onChange={onChange} currentFileContent={currentFileContent} />
         </div>
       </div>
-      <div data-tauri-drag-region className="flex  w-screen h-8 justify-end bg-zinc-700 text-center" >
-        <span data-tauri-drag-region className='text-center  place-self-center  cursor-default  text-s  z-10 mr-8'> Words: {wordCount}</span>
+      <div data-tauri-drag-region className="flex  w-screen h-8 justify-end bg-zinc-800 text-center" >
+        <span data-tauri-drag-region className='text-center  place-self-center  cursor-default  text-sm  z-10 mr-8 text-zinc-400'>  {wordCount} Words</span>
       </div>
     </div>
 

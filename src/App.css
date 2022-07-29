@@ -3,7 +3,7 @@
 @tailwind utilities;
 
 #root {
-
+ background-color: transparent;
 }
 
 
