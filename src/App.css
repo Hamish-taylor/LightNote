@@ -28,3 +28,19 @@
   background-color: black;
   user-select: all;
 }
+
+.slideout {
+  transition-duration: 500ms;
+  transform: translatex(-100%);
+}
+
+.slidein {
+  transition-duration: 500ms;
+  transform: translatex(-120%);
+}
+
+
+@keyframes slideoff {
+  from {transform: translateX(0px);}
+  to {transform: translateX(1000px);}
+}

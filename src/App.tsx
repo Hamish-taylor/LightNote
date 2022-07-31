@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import "./App.css";
-
+import { open } from "@tauri-apps/api/dialog";
 import { appWindow } from "@tauri-apps/api/window";
+import { AiFillFire } from "react-icons/ai";
 import {
 	MdClear,
 	MdMinimize,
@@ -27,7 +28,7 @@ import {
 	removeFile,
 } from "@tauri-apps/api/fs";
 
-import { invoke } from "@tauri-apps/api";
+import { fs, invoke } from "@tauri-apps/api";
 
 import Editor from "./Editor";
 import SideBar from "./SideBar";
@@ -36,25 +37,21 @@ import FileTreeItem from "./FileTreeItem";
 
 //TODO:
 function App() {
-	const [count, setCount] = useState(0);
-	const [doc, setDoc] = useState("");
 	//const [mainFolder, setMainFolder] = useState<folder>(new folder({ name: "Main", path: "C:/Users/Hamis/Documents/NotesCopy" }))
-	const [mainFolder, setMainFolder] = useState(
-		"C:/Users/Hamis/Documents/NotesCopy"
-	);
 	const [allPaths, setAllPaths] = useState<FileEntry[]>([]);
 	const [showFileLeaf, setShowFileLeaf] = useState(false);
 	const [folderLeafWidth, setFolderLeafWidth] = useState(300);
 	const [currentFileContent, setCurrentFileContent] = useState("");
 	const [currentFilePath, setCurrentFilePath] = useState("");
-	const [oldFilePath, setOldFilePath] = useState("");
 	const [currentFileName, setCurrentFileName] = useState("");
 	const [wordCount, setWordCount] = useState(0);
 	const [settingsModal, setSettingsModal] = useState(false);
-	const [settings, setSettings] = useState({ editorWidth: 700 });
-	const [deleting, setDeleting] = useState("");
-
-	const [edit, setEdit] = useState(false);
+	const [settings, setSettings] = useState({
+		editorWidth: 700,
+		mainFolder: "",
+	});
+	const [slideSplashScreen, setSlideSplashScreen] = useState(false);
+	const [startSelectedFolder, setStartSelectedFolder] = useState("");
 
 	const [renaming, setRenaming] = useState("");
 
@@ -77,25 +74,25 @@ function App() {
 
 		while (loop) {
 			try {
-				await readTextFile(mainFolder + "/" + newFileName);
+				await readTextFile(settings.mainFolder + "/" + newFileName);
 				num += 1;
 				newFileName = "Untitled " + num + ".md";
 			} catch (error) {
-				await writeTextFile(mainFolder + "/" + newFileName, "");
+				await writeTextFile(settings.mainFolder + "/" + newFileName, "");
 				loop = false;
 			}
 		}
 
 		await readFiles();
-		await setCurrentFilePath(mainFolder + "/" + newFileName);
-		openNewFile(mainFolder + "/" + newFileName, newFileName);
+		await setCurrentFilePath(settings.mainFolder + "/" + newFileName);
+		openNewFile(settings.mainFolder + "/" + newFileName, newFileName);
 	};
 
 	const createNewFolder = async () => {
 		let num = 0;
 		let loop = true;
 
-		let newFolderName = mainFolder + "/" + "Untitled";
+		let newFolderName = settings.mainFolder + "/" + "Untitled";
 
 		while (loop) {
 			try {
@@ -103,7 +100,7 @@ function App() {
 				loop = false;
 			} catch (error) {
 				num += 1;
-				newFolderName = mainFolder + "/" + "Untitled " + num;
+				newFolderName = settings.mainFolder + "/" + "Untitled " + num;
 			}
 		}
 
@@ -111,7 +108,7 @@ function App() {
 		setContextID(newFolderName);
 		setRenaming(newFolderName);
 	};
-	
+
 	const handleContextMenu = useCallback(
 		(event: {
 			preventDefault: () => void;
@@ -130,7 +127,8 @@ function App() {
 			} else if (isFileOrFolder(event.target.id) == "folder") {
 				setShowEditorContext(true);
 			} else {
-				setShowEditorContext(true);
+				setShowEditorContext(false);
+				setShowFileContext(false);
 			}
 			setContextID(event.target.id);
 		},
@@ -167,7 +165,7 @@ function App() {
 
 			document.addEventListener("keydown", (e) => {
 				if (e.key == "Enter") {
-					setRenaming('');
+					setRenaming("");
 				}
 			});
 
@@ -195,46 +193,27 @@ function App() {
 
 	useEffect(() => {
 		const elem = document.getElementById("FileBrowserLeaf")!;
-		elem.classList.add("transition-all");
-		elem.addEventListener(
-			"transitionend",
-			function (event) {
-				elem.classList.remove("transition-all");
-			},
-			false
-		);
+		if (elem) {
+			elem.classList.add("transition-all");
+			elem.addEventListener(
+				"transitionend",
+				function (event) {
+					elem.classList.remove("transition-all");
+				},
+				false
+			);
+		}
 	}, [showFileLeaf]);
 
 	const openNewFile = (path: string, name: string) => {
 		if (name.includes(".md")) {
-			setOldFilePath(contextID);
 			setCurrentFilePath(path);
-
 			setCurrentFileName(name);
 		}
 	};
 
-	useEffect(() => {
-		if (
-			oldFilePath != "" &&
-			oldFilePath.includes(".md") &&
-			currentFilePath != oldFilePath
-		) {
-			document.getElementById(oldFilePath)!.classList.remove("active");
-			console.log("old file path " + oldFilePath);
-		}
-	}, [oldFilePath]);
-
-	// useEffect(() => {
-	// 	if (renaming) {
-	// 		rename();
-	// 	}
-	// }),
-	// 	[allPaths];
-
 	const readFiles = async () => {
-		const entries = await readDir(mainFolder, { recursive: true });
-
+		const entries = await readDir(settings.mainFolder, { recursive: true });
 		setAllPaths(entries);
 	};
 
@@ -275,7 +254,7 @@ function App() {
 			if (!a.children && b.children) {
 				return 1;
 			}
-			
+
 			return a.name!.localeCompare(b.name!);
 		});
 		return (
@@ -293,167 +272,98 @@ function App() {
 		);
 	};
 
-	// const renderFolders = (entries: any[]) => {
-	// 	entries = entries.filter((entry) => !(entry.name?.charAt(0) === "."));
-	// 	entries.sort((a, b) => {
-	// 		if (a.children && !b.children) {
-	// 			return -1;
-	// 		}
-	// 		if (!a.children && b.children) {
-	// 			return 1;
-	// 		}
-	// 		return a.name!.localeCompare(b.name!);
-	// 	});
-	// 	return (
-	// 		<div>
-	// 			{entries.map((entry: any) => {
-	// 				if (entry.type === "file") {
-	// 					return (
-	// 						<div>
-	// 							<div>{entry.name}</div>
-	// 						</div>
-	// 					);
-	// 				} else {
-	// 					return (
-	// 						<div className="bg-zinc-800 ">
-	// 							{isFileOrFolder(entry.path) == "none" ? (
-	// 								<div className="tooltip " data-tip="Invalid filetype">
-	// 									{" "}
-	// 									<button
-	// 										id={entry.path}
-	// 										className=" bg-zinc-800 opacity-25 flex flex-1 text-left w-full outline-none border-none rounded-none focus:rounded-none focused hover:bg-zinc-600 focus:outline-none "
-	// 									>
-	// 										{" "}
-	// 										<div id={entry.path + ":name"}>{entry.name}</div>
-	// 										{entry.children ? (
-	// 											<IoMdArrowDropdown className="place-self-center" />
-	// 										) : null}
-	// 									</button>{" "}
-	// 								</div>
-	// 							) : (
-	// 								<button
-	// 									id={entry.path}
-	// 									onClick={() => {
-	// 										handleClick(entry.path),
-	// 											setOldFilePath(currentFilePath),
-	// 											setCurrentFilePath(entry.path);
-	// 									}}
-	// 									className=" bg-zinc-800 flex flex-1 text-left w-full outline-none border-none rounded-none focus:rounded-none focused hover:bg-zinc-600 focus:outline-none "
-	// 								>
-	// 									{" "}
-	// 									<div id={entry.path + ":name"}>{entry.name}</div>
-	// 									{entry.children ? (
-	// 										<IoMdArrowDropdown className="place-self-center" />
-	// 									) : null}
-	// 								</button>
-	// 							)}
-	// 							<div
-	// 								style={{ display: "none" }}
-	// 								className="pl-5 bg-zinc-800 duration-200 ease-in-out "
-	// 							>
-	// 								{" "}
-	// 								{entry.children ? renderFolders(entry.children) : null}{" "}
-	// 							</div>
-	// 						</div>
-	// 					);
-	// 				}
-	// 			})}
-	// 		</div>
-	// 	);
-	// };
-
 	useEffect(() => {
 		readFiles();
-
 		// Query the element
 		const resizer = document.getElementById("resizeBar")!;
 		const leftSide = document.getElementById("FileBrowserLeaf")!;
 		const rightSide = document.getElementById("contentPane")!;
+		if (resizer && leftSide && rightSide) {
+			// The current position of mouse
+			let x = 0;
+			let y = 0;
 
-		// The current position of mouse
-		let x = 0;
-		let y = 0;
+			// Width of left side
+			let leftWidth = 0;
 
-		// Width of left side
-		let leftWidth = 0;
+			// Handle the mousedown event
+			// that's triggered when user drags the resizer
+			const mouseDownHandler = function (e: {
+				clientX: number;
+				clientY: number;
+			}) {
+				// Get the current mouse position
+				x = e.clientX;
+				y = e.clientY;
+				leftWidth = parseInt(getComputedStyle(leftSide, "").width); //leftSide.getBoundingClientRect().width;
 
-		// Handle the mousedown event
-		// that's triggered when user drags the resizer
-		const mouseDownHandler = function (e: {
-			clientX: number;
-			clientY: number;
-		}) {
-			// Get the current mouse position
-			x = e.clientX;
-			y = e.clientY;
-			leftWidth = parseInt(getComputedStyle(leftSide, "").width); //leftSide.getBoundingClientRect().width;
+				// Attach the listeners to `document`
+				document.addEventListener("mousemove", mouseMoveHandler);
+				document.addEventListener("mouseup", mouseUpHandler);
+			};
 
-			// Attach the listeners to `document`
-			document.addEventListener("mousemove", mouseMoveHandler);
-			document.addEventListener("mouseup", mouseUpHandler);
-		};
+			// Attach the handler
+			resizer.addEventListener("mousedown", mouseDownHandler);
 
-		// Attach the handler
-		resizer.addEventListener("mousedown", mouseDownHandler);
+			const mouseMoveHandler = function (e: {
+				clientX: number;
+				clientY: number;
+			}) {
+				// How far the mouse has been moved
+				const dx = e.clientX - x;
 
-		const mouseMoveHandler = function (e: {
-			clientX: number;
-			clientY: number;
-		}) {
-			// How far the mouse has been moved
-			const dx = e.clientX - x;
+				let newLeftWidth =
+					((leftWidth + dx) * 100) /
+					resizer.parentElement!.getBoundingClientRect().width;
+				if (newLeftWidth < 4) {
+					newLeftWidth = 0;
+				}
 
-			let newLeftWidth =
-				((leftWidth + dx) * 100) /
-				resizer.parentElement!.getBoundingClientRect().width;
-			if (newLeftWidth < 4) {
-				newLeftWidth = 0;
-			}
+				if (newLeftWidth > 4) {
+					setShowFileLeaf(true);
+				} else {
+					setShowFileLeaf(false);
+				}
 
-			if (newLeftWidth > 4) {
-				setShowFileLeaf(true);
-			} else {
-				setShowFileLeaf(false);
-			}
+				leftSide.style.width = `${newLeftWidth}%`;
 
-			leftSide.style.width = `${newLeftWidth}%`;
+				document.body.style.cursor = "col-resize";
+				document.body.style.cursor = "col-resize";
 
-			document.body.style.cursor = "col-resize";
-			document.body.style.cursor = "col-resize";
+				leftSide.style.userSelect = "none";
+				leftSide.style.pointerEvents = "none";
 
-			leftSide.style.userSelect = "none";
-			leftSide.style.pointerEvents = "none";
+				rightSide.style.userSelect = "none";
+				rightSide.style.pointerEvents = "none";
+			};
 
-			rightSide.style.userSelect = "none";
-			rightSide.style.pointerEvents = "none";
-		};
+			const mouseUpHandler = function () {
+				resizer.style.removeProperty("cursor");
+				document.body.style.removeProperty("cursor");
 
-		const mouseUpHandler = function () {
-			resizer.style.removeProperty("cursor");
-			document.body.style.removeProperty("cursor");
+				leftSide.style.removeProperty("user-select");
+				leftSide.style.removeProperty("pointer-events");
 
-			leftSide.style.removeProperty("user-select");
-			leftSide.style.removeProperty("pointer-events");
+				rightSide.style.removeProperty("user-select");
+				rightSide.style.removeProperty("pointer-events");
 
-			rightSide.style.removeProperty("user-select");
-			rightSide.style.removeProperty("pointer-events");
+				// Remove the handlers of `mousemove` and `mouseup`
+				document.removeEventListener("mousemove", mouseMoveHandler);
+				document.removeEventListener("mouseup", mouseUpHandler);
 
-			// Remove the handlers of `mousemove` and `mouseup`
-			document.removeEventListener("mousemove", mouseMoveHandler);
-			document.removeEventListener("mouseup", mouseUpHandler);
-
-			leftWidth = parseInt(getComputedStyle(leftSide, "").width);
-			if (leftWidth < 4) {
-				setShowFileLeaf(false);
-				setFolderLeafWidth(300);
-			} else {
-				setFolderLeafWidth(leftWidth);
-				setShowFileLeaf(true);
-			}
-			if (leftWidth > 4 && showFileLeaf == false) {
-				setShowFileLeaf(true);
-			}
-		};
+				leftWidth = parseInt(getComputedStyle(leftSide, "").width);
+				if (leftWidth < 4) {
+					setShowFileLeaf(false);
+					setFolderLeafWidth(300);
+				} else {
+					setFolderLeafWidth(leftWidth);
+					setShowFileLeaf(true);
+				}
+				if (leftWidth > 4 && showFileLeaf == false) {
+					setShowFileLeaf(true);
+				}
+			};
+		}
 	}, []);
 
 	const deleteFile = async (path: string) => {
@@ -462,7 +372,6 @@ function App() {
 			changeSelected("", "");
 			setCurrentFilePath("");
 			setCurrentFileName("");
-			setOldFilePath("");
 			setCurrentFileContent("");
 		}
 		if (isFileOrFolder(p) == "file") {
@@ -470,11 +379,41 @@ function App() {
 		} else if (isFileOrFolder(p) == "folder") {
 			await invoke("deleteDir", { path: p });
 		}
-
-		//unselect the file
-
 		await readFiles();
 	};
+
+	const openFolder = async () => {
+		const selected = await open({
+			multiple: true,
+			directory: true,
+		});
+		if (selected) {
+			const path = selected[0];
+			console.log(path);
+			setStartSelectedFolder(path);
+			// const set = settings;
+			// set.mainFolder = path;
+			// setSettings(set);
+			// await readFiles();
+		}
+	};
+
+	const setMainFolder = async () => {
+		const set = settings;
+		set.mainFolder = startSelectedFolder;
+		setSettings(set);
+		await readFiles();
+	};
+
+	const createMainFolder = async () => {
+		const folderName = (document.getElementById("splashScreenFolderName")! as HTMLInputElement).value;
+		const path = startSelectedFolder;
+		await fs.createDir(path + "/" + folderName);
+		const set = settings;
+		set.mainFolder = path + "/" + folderName;
+		setSettings(set);
+		await readFiles();
+	}
 
 	const onChange = useCallback(
 		async (value: any, viewUpdate: any) => {
@@ -486,231 +425,417 @@ function App() {
 	);
 
 	return (
-		<div className="z-0 bg-zinc-900 flex flex-col w-screen h-screen overflow-hidden ">
-			{showEditorContext ? (
-				<ul
-					className="menu w-auto h-auto absolute z-50 bg-zinc-900 flex flex-col justify-between border-zinc-800 rounded-md"
-					style={{
-						top: anchorPoint.y,
-						left: anchorPoint.x,
-					}}
-				>
-					<button
-						className="flex text-center align-middle text-sm rounded-none border-none bg-transparent hover:bg-zinc-700 mt-1"
-						onClick={() => {
-							setRenaming(contextID); //, rename();
+		<div>
+			<div className="z-0 bg-zinc-900 flex flex-col w-screen h-screen overflow-hidden ">
+				{showEditorContext ? (
+					<ul
+						className="menu w-auto h-auto absolute z-50 bg-zinc-900 flex flex-col justify-between border-zinc-800 rounded-md"
+						style={{
+							top: anchorPoint.y,
+							left: anchorPoint.x,
 						}}
 					>
-						<VscEdit className="text-s self-center mr-1" />
-						Rename folder
-					</button>
-					<button
-						className="flex text-center align-middle text-sm  rounded-none border-none bg-transparent hover:bg-zinc-700 mb-1"
-						onClick={() => {
-							deleteFile(contextID);
-						}}
-					>
-						<VscTrash className="text-s self-center  mr-1" />
-						Delete folder
-					</button>
-				</ul>
-			) : (
-				<> </>
-			)}
-
-			{showFileContext ? (
-				<ul
-					className="menu w-auto h-auto absolute z-50 bg-zinc-900 flex flex-col justify-between"
-					style={{
-						top: anchorPoint.y,
-						left: anchorPoint.x,
-					}}
-				>
-					<button
-						className="flex text-center align-middle text-sm  rounded-none border-none bg-transparent hover:bg-zinc-700 mt-1"
-						onClick={() => {
-							setRenaming(contextID); //, rename();
-						}}
-					>
-						<VscEdit className="text-s self-center mr-1" />
-						Rename file
-					</button>
-					<button
-						className="flex text-center align-middle text-sm  rounded-none border-none bg-transparent hover:bg-zinc-700  mb-1"
-						onClick={() => {
-							deleteFile(contextID);
-						}}
-					>
-						<VscTrash className="text-s self-center  mr-1" />
-						Delete file
-					</button>
-				</ul>
-			) : (
-				<> </>
-			)}
-
-			<div
-				data-tauri-drag-region
-				className="z-50 flex  w-screen right-0 left-0 justify-end bg-zinc-900 text-center text-white"
-			>
-				<span
-					data-tauri-drag-region
-					className="absolute text-center justify-center place-self-center w-full cursor-default  text-xs  z-10"
-				>
-					{currentFileName}
-				</span>
-				<button
-					onClick={minimize}
-					className="bg-zinc-900 hover:bg-zinc-600 rounded-none border-none focus:outline-none bg-center z-20"
-				>
-					{" "}
-					<MdMinimize className="flex-1" />{" "}
-				</button>
-				<button
-					onClick={maximize}
-					className="bg-zinc-900 hover:bg-zinc-600 rounded-none border-none focus:outline-none z-20"
-				>
-					{" "}
-					<VscChromeMaximize />{" "}
-				</button>
-				<button
-					onClick={close}
-					className="bg-zinc-900 hover:bg-red-600 rounded-none border-none focus:outline-none z-20"
-				>
-					{" "}
-					<MdClear />{" "}
-				</button>
-			</div>
-			{settingsModal ? (
-				<div className="z-20 top-0 left-0  w-screen h-screen  absolute flex place-content-center">
-					<div
-						onClick={showSettingsModal}
-						className="absolute z-40  bg-black opacity-50 w-full h-full"
-					></div>
-					<div className=" z-50 opacity-100 relative  ml-auto mr-auto mt-auto top-0 bottom-0 mb-auto  left-0 right-0  w-4/5 h-4/5 bg-zinc-800  rounded-xl border-zinc-900 shadow-lg">
-						<div className="justify-center">SETTINGS</div>
 						<button
-							onClick={showSettingsModal}
-							className="absolute right-0 top-0 text-zinc-400 hover:text-zinc-100 bg-transparent rounded-none border-none focus:outline-none z-20"
+							className="flex text-center align-middle text-sm rounded-none border-none bg-transparent hover:bg-zinc-700 mt-1"
+							onClick={() => {
+								setRenaming(contextID); //, rename();
+							}}
 						>
-							{" "}
-							<MdClear />{" "}
+							<VscEdit className="text-s self-center mr-1" />
+							Rename folder
 						</button>
-						<br />
-						{/* <div className="grid grid-rows-3 grid-flow-col gap-4 text-center ">
+						<button
+							className="flex text-center align-middle text-sm  rounded-none border-none bg-transparent hover:bg-zinc-700 mb-1"
+							onClick={() => {
+								deleteFile(contextID);
+							}}
+						>
+							<VscTrash className="text-s self-center  mr-1" />
+							Delete folder
+						</button>
+					</ul>
+				) : (
+					<> </>
+				)}
+
+				{showFileContext ? (
+					<ul
+						className="menu w-auto h-auto absolute z-50 bg-zinc-900 flex flex-col justify-between"
+						style={{
+							top: anchorPoint.y,
+							left: anchorPoint.x,
+						}}
+					>
+						<button
+							className="flex text-center align-middle text-sm  rounded-none border-none bg-transparent hover:bg-zinc-700 mt-1"
+							onClick={() => {
+								setRenaming(contextID); //, rename();
+							}}
+						>
+							<VscEdit className="text-s self-center mr-1" />
+							Rename file
+						</button>
+						<button
+							className="flex text-center align-middle text-sm  rounded-none border-none bg-transparent hover:bg-zinc-700  mb-1"
+							onClick={() => {
+								deleteFile(contextID);
+							}}
+						>
+							<VscTrash className="text-s self-center  mr-1" />
+							Delete file
+						</button>
+					</ul>
+				) : (
+					<> </>
+				)}
+
+				<div
+					data-tauri-drag-region
+					className="z-50 flex  w-screen right-0 left-0 justify-end bg-zinc-900 text-center text-white"
+				>
+					<span
+						data-tauri-drag-region
+						className="absolute text-center justify-center place-self-center w-full cursor-default  text-xs  z-10"
+					>
+						{currentFileName}
+					</span>
+					<button
+						onClick={minimize}
+						className="bg-zinc-900 hover:bg-zinc-600 rounded-none border-none focus:outline-none bg-center z-20"
+					>
+						{" "}
+						<MdMinimize className="flex-1" />{" "}
+					</button>
+					<button
+						onClick={maximize}
+						className="bg-zinc-900 hover:bg-zinc-600 rounded-none border-none focus:outline-none z-20"
+					>
+						{" "}
+						<VscChromeMaximize />{" "}
+					</button>
+					<button
+						onClick={close}
+						className="bg-zinc-900 hover:bg-red-600 rounded-none border-none focus:outline-none z-20"
+					>
+						{" "}
+						<MdClear />{" "}
+					</button>
+				</div>
+				{settingsModal ? (
+					<div className="z-20 top-0 left-0  w-screen h-screen  absolute flex place-content-center">
+						<div
+							onClick={showSettingsModal}
+							className="absolute z-40  bg-black opacity-50 w-full h-full"
+						></div>
+						<div className=" z-50 opacity-100 relative  ml-auto mr-auto mt-auto top-0 bottom-0 mb-auto  left-0 right-0  w-4/5 h-4/5 bg-zinc-800  rounded-xl border-zinc-900 shadow-lg">
+							<div className="justify-center">SETTINGS</div>
+							<button
+								onClick={showSettingsModal}
+								className="absolute right-0 top-0 text-zinc-400 hover:text-zinc-100 bg-transparent rounded-none border-none focus:outline-none z-20"
+							>
+								{" "}
+								<MdClear />{" "}
+							</button>
+							<br />
+							{/* <div className="grid grid-rows-3 grid-flow-col gap-4 text-center ">
               <div className="row-span-3 bg-gray-900 ">01</div>
               <div className="col-span-2 bg-gray-900 ">02</div>
               <div className="row-span-2 col-span-2 bg-gray-900 ">03</div>
             </div> */}
-						<div className="divider"></div>
-						<div className="flex flex-row w-full  px-10">
-							<div className=" flex-1 flex flex-col items-start">
-								<label className="flex-1">Editor Width </label>
-								<label className="flex-1 text-gray-400">
-									The width of the editor in pixels
-								</label>
+							<div className="divider"></div>
+							<div className="flex flex-row w-full  px-10">
+								<div className=" flex-1 flex flex-col items-start">
+									<label className="flex-1">Editor Width </label>
+									<label className="flex-1 text-gray-400">
+										The width of the editor in pixels
+									</label>
+								</div>
+								<div className="text-end float flex-1 flex flex-col items-end">
+									<input
+										className="w-1/2"
+										type="number"
+										value={settings.editorWidth}
+										onChange={(e) => {
+											setSettings({
+												...settings,
+												editorWidth: parseInt(e.target.value),
+											}),
+												(document.getElementById("codeMirror")!.style.maxWidth =
+													e.target.value + "px");
+										}}
+									/>
+									<input
+										className="range range-primary w-1/2 "
+										type="range"
+										min="100"
+										max="2000"
+										value={settings.editorWidth}
+										onChange={(e) => {
+											setSettings({
+												...settings,
+												editorWidth: parseInt(e.target.value),
+											}),
+												(document.getElementById("codeMirror")!.style.maxWidth =
+													e.target.value + "px");
+										}}
+									/>
+								</div>
+								<div className="pl-2">px</div>
 							</div>
-							<div className="text-end float flex-1 flex flex-col items-end">
-								<input
-									className="w-1/2"
-									type="number"
-									value={settings.editorWidth}
-									onChange={(e) => {
-										setSettings({
-											...settings,
-											editorWidth: parseInt(e.target.value),
-										}),
-											(document.getElementById("codeMirror")!.style.maxWidth =
-												e.target.value + "px");
-									}}
-								/>
-								<input
-									className="range range-primary w-1/2 "
-									type="range"
-									min="100"
-									max="2000"
-									value={settings.editorWidth}
-									onChange={(e) => {
-										setSettings({
-											...settings,
-											editorWidth: parseInt(e.target.value),
-										}),
-											(document.getElementById("codeMirror")!.style.maxWidth =
-												e.target.value + "px");
-									}}
-								/>
-							</div>
-							<div className="pl-2">px</div>
+							<div className="divider"></div>
 						</div>
-						<div className="divider"></div>
 					</div>
-				</div>
-			) : null}
-			<div className="z-0 flex flex-row h-full overflow-hidden">
-				{/* <div className="justify-between flex flex-col z-10 h-full bg-zinc-900">
+				) : null}
+				{settings.mainFolder == "" ? (
+					<div
+						id="splashscreen"
+						className=" h-screen w-full bg-zinc-600 text-center flex-col flex"
+					>
+						<div className="pb-5 pt-10 text-8xl flex ">
+							<svg width="0" height="0">
+								<defs>
+									<linearGradient id="grad1" x1="0%" y1="0%" x2="0%" y2="100%">
+										<stop
+											offset="0%"
+											style={{
+												stopColor: "#b794f4",
+												stopOpacity: "stop-opacity:1",
+											}}
+										/>
+										<stop
+											offset="50%"
+											style={{
+												stopColor: "#ed64a6",
+												stopOpacity: "stop-opacity:1",
+											}}
+										/>
+										<stop
+											offset="100%"
+											style={{
+												stopColor: "#f56565",
+												stopOpacity: "stop-opacity:1",
+											}}
+										/>
+									</linearGradient>
+								</defs>
+							</svg>
+							<AiFillFire className="flex-1 " style={{ fill: "url(#grad1)" }} />
+						</div>
+						<div className=" text-5xl">Welcome to LightNote!</div>
+						<div className=" text-sm text-zinc-400">Alpha 0.0.1</div>
+						<div className="ml-auto mr-auto mt-auto top-0 bottom-0 mb-auto left-0 right-0 w-[500px] border-2 p-10 border-zinc-500 rounded-lg overflow-hidden ">
+							<div className="grid grid-cols-2 w-[200%]">
+								<div
+									onAnimationEnd={() => setSlideSplashScreen(false)}
+									className={slideSplashScreen ? "slidein " : ""}
+								>
+									<form className="flex felx-row justify-between items-center space-x-6">
+										<div className="text-left">
+											<div className="flex-1">Choose a home for your notes</div>
+											<div className="flex-1 text-gray-400">
+												Create a folder to store your notes
+											</div>
+										</div>
+										<div className="float-right">
+											<button
+												type="button"
+												className="bg-zinc-700 outline-none hover:border-blue-400  focus:border-none focus:outline-none"
+												onClick={() => {
+													setSlideSplashScreen(true);
+												}}
+											>
+												Create
+											</button>
+										</div>
+									</form>
+									<div className="divider justify-center"></div>
+									<form className="flex  justify-between items-center space-x-6 max-w-1">
+										<div className="text-left ">
+											<div className="flex-1">Open notes folder</div>
+											
+											<div className="text-gray-400  ">
+												
+												{startSelectedFolder === ""
+													? "Open an existing notes folder"
+													: "Opening folder:"}
+													<div className="tooltip" data-tip={startSelectedFolder === ""
+														? ""
+														: startSelectedFolder}>
+												<div className="text-blue-400 font-bold truncate w-[300px] ">
+													{startSelectedFolder === ""
+														? ""
+														: startSelectedFolder}
+												</div>
+												</div>
+											</div>
+										</div>
+										<div className="float-right">
+											<button
+												type="button"
+												className="bg-zinc-700 outline-none hover:border-blue-400  focus:border-none focus:outline-none"
+												onClick={openFolder}
+											>
+												Open
+											</button>
+										</div>
+									</form>
+
+									<div className="divider justify-center "></div>
+								</div>
+								<div
+									onAnimationEnd={() => setSlideSplashScreen(false)}
+									className={
+										slideSplashScreen ? " slideout" : "translate-x-[20%]"
+									}
+								>
+									<form className="flex felx-row justify-between items-center space-x-6">
+										<div className="text-left">
+											<div className="flex-1">Notes folder name</div>
+											<div className="flex-1 text-gray-400">
+												Name you notes folder
+											</div>
+										</div>
+										<div className="">
+											<input
+												id="splashScreenFolderName"
+												onKeyDown={(e) => {
+													e.key === "Enter" ? e.preventDefault() : null;
+												}}
+												className="text-white w-4/5 float-right bg-zinc-700 border-1 focus:outline-blue-400 focus:border-none "
+											></input>
+										</div>
+									</form>
+									<div className="divider justify-center"></div>
+									<form className="flex felx-row justify-between items-center space-x-6">
+										<div className="text-left">
+											<div className="flex-1">Choose folder</div>
+											<div className="text-gray-400  ">										
+												{startSelectedFolder === ""
+													? "Choose the home for your new notes folder"
+													: "Creating your notes folder in:"}
+													<div className="tooltip" data-tip={startSelectedFolder === ""
+														? ""
+														: startSelectedFolder}>
+												<div className="text-blue-400 font-bold truncate w-[300px] ">
+													{startSelectedFolder === ""
+														? ""
+														: startSelectedFolder}
+												</div>
+												</div>
+											</div>
+										</div>
+										<div className="float-right">
+											<button
+												type="button"
+												className="bg-zinc-700 outline-none hover:border-blue-400  focus:border-none focus:outline-none"
+												onClick={openFolder}
+											>
+												Open
+											</button>
+										</div>
+									</form>
+
+									<div className="divider justify-center "></div>
+								</div>
+							</div>
+							{startSelectedFolder === "" ? <div className="tooltip" data-tip="Missing information">
+							<button
+								disabled={true}
+								className="  bg-blue-400  duration-300 hover:bg-red-500 outline-none focus:border-none focus:outline-none focus:bg-red-500 border-none"
+								onClick={slideSplashScreen ? createMainFolder : setMainFolder}
+							>
+								Accept
+							</button>
+							</div>
+							:
+
+							<button
+								className="  bg-blue-400  duration-300 hover:animate-wiggle hover:w-[200px] outline-none focus:border-none focus:outline-none focus:bg-blue-500 border-none "
+								onClick={slideSplashScreen ? createMainFolder : setMainFolder}
+							>
+								Accept
+							</button>
+							}
+							
+
+						</div>
+					</div>
+				) : (
+					<div className="z-0 flex flex-row h-full overflow-hidden">
+						{/* <div className="justify-between flex flex-col z-10 h-full bg-zinc-900">
           <button id="fileBrowser" onClick={showFileBrowserLeaf} className="text-lg text-zinc-500 hover:text-white bg-zinc-900 hover:bg-zinc-900 rounded-none border-none focus:outline-none ease-in-out duration-200"> {showFileLeaf ? <MdMenuOpen /> : <MdMenu />} </button>
           <button id="fileBrowser" onClick={showSettingsModal} className='text-lg text-zinc-500 hover:text-white bg-zinc-900 hover:bg-zinc-900 rounded-none border-none focus:outline-none ease-in-out duration-200'> {showFileLeaf ? <VscGear /> : <VscGear />} </button>
         </div> */}
-				<SideBar
-					showFileBrowserLeaf={showFileBrowserLeaf}
-					showFileLeaf={showFileLeaf}
-					showSettingsModal={showSettingsModal}
-				/>
-				<div
-					style={
-						showFileLeaf ? { width: folderLeafWidth + "px" } : { width: "0px" }
-					}
-					className=" z-0 relative h-full flex max-w-[80%] flex-col overflow-hidden"
-					id="FileBrowserLeaf"
-				>
-					<div className="rounded-tl-lg w-full justify-center flex bg-zinc-800 p-3">
-						<button
-							onClick={createNewFile}
-							className="px-4 py-1 text-2xl  bg-zinc-800 text-zinc-500 font-semibold rounded-none border-none hover:text-white   focus:outline-none "
+						<SideBar
+							showFileBrowserLeaf={showFileBrowserLeaf}
+							showFileLeaf={showFileLeaf}
+							showSettingsModal={showSettingsModal}
+						/>
+						<div
+							style={
+								showFileLeaf
+									? { width: folderLeafWidth + "px" }
+									: { width: "0px" }
+							}
+							className=" z-0 relative h-full flex max-w-[80%] flex-col overflow-hidden"
+							id="FileBrowserLeaf"
 						>
-							<MdOutlineInsertDriveFile />
-						</button>
-						<button
-							onClick={createNewFolder}
-							className="px-4 py-1 text-2xl bg-zinc-800 text-zinc-500 font-semibold rounded-none border-none hover:text-white   focus:outline-none "
+							<div className="rounded-tl-lg w-full justify-center flex bg-zinc-800 p-3">
+								<button
+									type="button"
+									onClick={createNewFile}
+									className="px-4 py-1 text-2xl  bg-zinc-800 text-zinc-500 font-semibold rounded-none border-none hover:text-white   focus:outline-none "
+								>
+									<MdOutlineInsertDriveFile />
+								</button>
+								<button
+									type="button"
+									onClick={createNewFolder}
+									className="px-4 py-1 text-2xl bg-zinc-800 text-zinc-500 font-semibold rounded-none border-none hover:text-white   focus:outline-none "
+								>
+									<MdOutlineCreateNewFolder />
+								</button>
+								<FileTree path={settings.mainFolder} />
+							</div>
+							<div
+								id="folderTree"
+								className="bg-zinc-800 w-full h-full overflow-auto pb-10 text-sm text-ellipsis"
+							>
+								{renderFolders(allPaths)}
+							</div>
+						</div>
+						<div
+							id="resizeBar"
+							className={
+								showFileLeaf
+									? "w-1 bg-zinc-700 hover:bg-sky-400 cursor-col-resize ease-in-out duration-300 delay-50"
+									: " rounded-tl-2xl w-1 bg-zinc-700 hover:bg-sky-400 cursor-col-resize ease-in-out duration-300 delay-50"
+							}
+						></div>
+						<div
+							id="contentPane"
+							className="bg-zinc-700 w-full h-full overflow-auto flex-1 place-items-center "
 						>
-							<MdOutlineCreateNewFolder />
-						</button>
-						<FileTree path={mainFolder} />
+							<Editor
+								onChange={onChange}
+								currentFileContent={currentFileContent}
+							/>
+						</div>
 					</div>
+				)}
+				{settings.mainFolder !== "" ? (
 					<div
-						id="folderTree"
-						className="bg-zinc-800 w-full h-full overflow-auto pb-10 text-sm text-ellipsis"
+						data-tauri-drag-region
+						className="flex  w-screen h-8 justify-end bg-zinc-800 text-center"
 					>
-						{renderFolders(allPaths)}
+						<span
+							data-tauri-drag-region
+							className="text-center  place-self-center  cursor-default  text-sm  z-10 mr-8 text-zinc-400"
+						>
+							{wordCount} Words
+						</span>
 					</div>
-				</div>
-				<div
-					id="resizeBar"
-					className={
-						showFileLeaf
-							? "w-1 bg-zinc-700 hover:bg-sky-400 cursor-col-resize ease-in-out duration-300 delay-50"
-							: " rounded-tl-2xl w-1 bg-zinc-700 hover:bg-sky-400 cursor-col-resize ease-in-out duration-300 delay-50"
-					}
-				></div>
-				<div
-					id="contentPane"
-					className="bg-zinc-700 w-full h-full overflow-auto flex-1 place-items-center "
-				>
-					<Editor onChange={onChange} currentFileContent={currentFileContent} />
-				</div>
-			</div>
-			<div
-				data-tauri-drag-region
-				className="flex  w-screen h-8 justify-end bg-zinc-800 text-center"
-			>
-				<span
-					data-tauri-drag-region
-					className="text-center  place-self-center  cursor-default  text-sm  z-10 mr-8 text-zinc-400"
-				>
-					{" "}
-					{wordCount} Words
-				</span>
+				) : null}
 			</div>
 		</div>
 	);
