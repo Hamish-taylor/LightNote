@@ -15,6 +15,7 @@
     "@codemirror/lang-markdown": "github:codemirror/lang-markdown",
     "@codemirror/language-data": "github:codemirror/language-data",
     "@codemirror/matchbrackets": "github:codemirror/matchbrackets",
+    "@codemirror/state": "^6.1.0",
     "@szhsin/react-menu": "^3.1.1",
     "@tauri-apps/api": "^1.0.2",
     "@uiw/codemirror-theme-sublime": "^4.11.4",

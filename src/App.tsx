@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import "./App.css";
-import { open } from "@tauri-apps/api/dialog";
+
 import { appWindow } from "@tauri-apps/api/window";
 import { AiFillFire } from "react-icons/ai";
 import {
@@ -15,7 +15,7 @@ import {
 	MdOutlineCreateNewFolder,
 } from "react-icons/md";
 import { IoMdArrowDropright, IoMdArrowDropdown } from "react-icons/io";
-import { VscChromeMaximize, VscGear, VscEdit, VscTrash } from "react-icons/vsc";
+import { VscChromeMaximize, VscGear, VscEdit, VscTrash, VscArrowSmallLeft } from "react-icons/vsc";
 import {
 	readDir,
 	BaseDirectory,
@@ -34,6 +34,7 @@ import Editor from "./Editor";
 import SideBar from "./SideBar";
 import FileTree from "./FileTree";
 import FileTreeItem from "./FileTreeItem";
+import SplashScreen from "./SplashScreen";
 
 //TODO:
 function App() {
@@ -50,9 +51,9 @@ function App() {
 		editorWidth: 700,
 		mainFolder: "",
 	});
-	const [slideSplashScreen, setSlideSplashScreen] = useState(false);
-	const [startSelectedFolder, setStartSelectedFolder] = useState("");
 
+
+	
 	const [renaming, setRenaming] = useState("");
 
 	//Setting the window to frameless
@@ -191,19 +192,19 @@ function App() {
 		setSettingsModal(!settingsModal);
 	};
 
-	useEffect(() => {
-		const elem = document.getElementById("FileBrowserLeaf")!;
-		if (elem) {
-			elem.classList.add("transition-all");
-			elem.addEventListener(
-				"transitionend",
-				function (event) {
-					elem.classList.remove("transition-all");
-				},
-				false
-			);
-		}
-	}, [showFileLeaf]);
+	// useEffect(() => {
+	// 	const elem = document.getElementById("FileBrowserLeaf")!;
+	// 	if (elem) {
+	// 		elem.classList.add("transition-all");
+	// 		elem.addEventListener(
+	// 			"transitionend",
+	// 			function (event) {
+	// 				elem.classList.remove("transition-all");
+	// 			},
+	// 			false
+	// 		);
+	// 	}
+	// }, [showFileLeaf]);
 
 	const openNewFile = (path: string, name: string) => {
 		if (name.includes(".md")) {
@@ -273,7 +274,6 @@ function App() {
 	};
 
 	useEffect(() => {
-		readFiles();
 		// Query the element
 		const resizer = document.getElementById("resizeBar")!;
 		const leftSide = document.getElementById("FileBrowserLeaf")!;
@@ -292,6 +292,8 @@ function App() {
 				clientX: number;
 				clientY: number;
 			}) {
+				leftSide.classList.remove("transition-all");
+				console.log("doing stuff")
 				// Get the current mouse position
 				x = e.clientX;
 				y = e.clientY;
@@ -309,6 +311,7 @@ function App() {
 				clientX: number;
 				clientY: number;
 			}) {
+
 				// How far the mouse has been moved
 				const dx = e.clientX - x;
 
@@ -338,6 +341,7 @@ function App() {
 			};
 
 			const mouseUpHandler = function () {
+				leftSide.classList.add("transition-all");
 				resizer.style.removeProperty("cursor");
 				document.body.style.removeProperty("cursor");
 
@@ -364,7 +368,7 @@ function App() {
 				}
 			};
 		}
-	}, []);
+	}, [allPaths]);
 
 	const deleteFile = async (path: string) => {
 		const p = path.replace(":name", "");
@@ -381,39 +385,6 @@ function App() {
 		}
 		await readFiles();
 	};
-
-	const openFolder = async () => {
-		const selected = await open({
-			multiple: true,
-			directory: true,
-		});
-		if (selected) {
-			const path = selected[0];
-			console.log(path);
-			setStartSelectedFolder(path);
-			// const set = settings;
-			// set.mainFolder = path;
-			// setSettings(set);
-			// await readFiles();
-		}
-	};
-
-	const setMainFolder = async () => {
-		const set = settings;
-		set.mainFolder = startSelectedFolder;
-		setSettings(set);
-		await readFiles();
-	};
-
-	const createMainFolder = async () => {
-		const folderName = (document.getElementById("splashScreenFolderName")! as HTMLInputElement).value;
-		const path = startSelectedFolder;
-		await fs.createDir(path + "/" + folderName);
-		const set = settings;
-		set.mainFolder = path + "/" + folderName;
-		setSettings(set);
-		await readFiles();
-	}
 
 	const onChange = useCallback(
 		async (value: any, viewUpdate: any) => {
@@ -587,179 +558,7 @@ function App() {
 					</div>
 				) : null}
 				{settings.mainFolder == "" ? (
-					<div
-						id="splashscreen"
-						className=" h-screen w-full bg-zinc-600 text-center flex-col flex"
-					>
-						<div className="pb-5 pt-10 text-8xl flex ">
-							<svg width="0" height="0">
-								<defs>
-									<linearGradient id="grad1" x1="0%" y1="0%" x2="0%" y2="100%">
-										<stop
-											offset="0%"
-											style={{
-												stopColor: "#b794f4",
-												stopOpacity: "stop-opacity:1",
-											}}
-										/>
-										<stop
-											offset="50%"
-											style={{
-												stopColor: "#ed64a6",
-												stopOpacity: "stop-opacity:1",
-											}}
-										/>
-										<stop
-											offset="100%"
-											style={{
-												stopColor: "#f56565",
-												stopOpacity: "stop-opacity:1",
-											}}
-										/>
-									</linearGradient>
-								</defs>
-							</svg>
-							<AiFillFire className="flex-1 " style={{ fill: "url(#grad1)" }} />
-						</div>
-						<div className=" text-5xl">Welcome to LightNote!</div>
-						<div className=" text-sm text-zinc-400">Alpha 0.0.1</div>
-						<div className="ml-auto mr-auto mt-auto top-0 bottom-0 mb-auto left-0 right-0 w-[500px] border-2 p-10 border-zinc-500 rounded-lg overflow-hidden ">
-							<div className="grid grid-cols-2 w-[200%]">
-								<div
-									onAnimationEnd={() => setSlideSplashScreen(false)}
-									className={slideSplashScreen ? "slidein " : ""}
-								>
-									<form className="flex felx-row justify-between items-center space-x-6">
-										<div className="text-left">
-											<div className="flex-1">Choose a home for your notes</div>
-											<div className="flex-1 text-gray-400">
-												Create a folder to store your notes
-											</div>
-										</div>
-										<div className="float-right">
-											<button
-												type="button"
-												className="bg-zinc-700 outline-none hover:border-blue-400  focus:border-none focus:outline-none"
-												onClick={() => {
-													setSlideSplashScreen(true);
-												}}
-											>
-												Create
-											</button>
-										</div>
-									</form>
-									<div className="divider justify-center"></div>
-									<form className="flex  justify-between items-center space-x-6 max-w-1">
-										<div className="text-left ">
-											<div className="flex-1">Open notes folder</div>
-											
-											<div className="text-gray-400  ">
-												
-												{startSelectedFolder === ""
-													? "Open an existing notes folder"
-													: "Opening folder:"}
-													<div className="tooltip" data-tip={startSelectedFolder === ""
-														? ""
-														: startSelectedFolder}>
-												<div className="text-blue-400 font-bold truncate w-[300px] ">
-													{startSelectedFolder === ""
-														? ""
-														: startSelectedFolder}
-												</div>
-												</div>
-											</div>
-										</div>
-										<div className="float-right">
-											<button
-												type="button"
-												className="bg-zinc-700 outline-none hover:border-blue-400  focus:border-none focus:outline-none"
-												onClick={openFolder}
-											>
-												Open
-											</button>
-										</div>
-									</form>
-
-									<div className="divider justify-center "></div>
-								</div>
-								<div
-									onAnimationEnd={() => setSlideSplashScreen(false)}
-									className={
-										slideSplashScreen ? " slideout" : "translate-x-[20%]"
-									}
-								>
-									<form className="flex felx-row justify-between items-center space-x-6">
-										<div className="text-left">
-											<div className="flex-1">Notes folder name</div>
-											<div className="flex-1 text-gray-400">
-												Name you notes folder
-											</div>
-										</div>
-										<div className="">
-											<input
-												id="splashScreenFolderName"
-												onKeyDown={(e) => {
-													e.key === "Enter" ? e.preventDefault() : null;
-												}}
-												className="text-white w-4/5 float-right bg-zinc-700 border-1 focus:outline-blue-400 focus:border-none "
-											></input>
-										</div>
-									</form>
-									<div className="divider justify-center"></div>
-									<form className="flex felx-row justify-between items-center space-x-6">
-										<div className="text-left">
-											<div className="flex-1">Choose folder</div>
-											<div className="text-gray-400  ">										
-												{startSelectedFolder === ""
-													? "Choose the home for your new notes folder"
-													: "Creating your notes folder in:"}
-													<div className="tooltip" data-tip={startSelectedFolder === ""
-														? ""
-														: startSelectedFolder}>
-												<div className="text-blue-400 font-bold truncate w-[300px] ">
-													{startSelectedFolder === ""
-														? ""
-														: startSelectedFolder}
-												</div>
-												</div>
-											</div>
-										</div>
-										<div className="float-right">
-											<button
-												type="button"
-												className="bg-zinc-700 outline-none hover:border-blue-400  focus:border-none focus:outline-none"
-												onClick={openFolder}
-											>
-												Open
-											</button>
-										</div>
-									</form>
-
-									<div className="divider justify-center "></div>
-								</div>
-							</div>
-							{startSelectedFolder === "" ? <div className="tooltip" data-tip="Missing information">
-							<button
-								disabled={true}
-								className="  bg-blue-400  duration-300 hover:bg-red-500 outline-none focus:border-none focus:outline-none focus:bg-red-500 border-none"
-								onClick={slideSplashScreen ? createMainFolder : setMainFolder}
-							>
-								Accept
-							</button>
-							</div>
-							:
-
-							<button
-								className="  bg-blue-400  duration-300 hover:animate-wiggle hover:w-[200px] outline-none focus:border-none focus:outline-none focus:bg-blue-500 border-none "
-								onClick={slideSplashScreen ? createMainFolder : setMainFolder}
-							>
-								Accept
-							</button>
-							}
-							
-
-						</div>
-					</div>
+					<SplashScreen setSettings={setSettings} settings={settings} readFiles={readFiles}></SplashScreen>
 				) : (
 					<div className="z-0 flex flex-row h-full overflow-hidden">
 						{/* <div className="justify-between flex flex-col z-10 h-full bg-zinc-900">
@@ -777,7 +576,7 @@ function App() {
 									? { width: folderLeafWidth + "px" }
 									: { width: "0px" }
 							}
-							className=" z-0 relative h-full flex max-w-[80%] flex-col overflow-hidden"
+							className="z-0 relative h-full flex max-w-[80%] flex-col overflow-hidden transition-all"
 							id="FileBrowserLeaf"
 						>
 							<div className="rounded-tl-lg w-full justify-center flex bg-zinc-800 p-3">
@@ -795,11 +594,10 @@ function App() {
 								>
 									<MdOutlineCreateNewFolder />
 								</button>
-								<FileTree path={settings.mainFolder} />
 							</div>
 							<div
 								id="folderTree"
-								className="bg-zinc-800 w-full h-full overflow-auto pb-10 text-sm text-ellipsis"
+								className={ "bg-zinc-800 w-full h-full overflow-auto pb-10 text-sm text-ellipsis "}
 							>
 								{renderFolders(allPaths)}
 							</div>

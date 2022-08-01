@@ -2,8 +2,7 @@ import CodeMirror, { useCodeMirror } from '@uiw/react-codemirror';
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown';
 import { languages } from '@codemirror/language-data';
 import { sublime } from '@uiw/codemirror-theme-sublime';
-import { EditorView, keymap, highlightActiveLine } from '@codemirror/view'
-import { HighlightStyle, tags } from '@codemirror/highlight';
+import { EditorView } from '@codemirror/view'
 
 function Editor(props: any) {
 

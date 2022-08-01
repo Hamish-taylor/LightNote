@@ -59,8 +59,8 @@ function FileTreeItem(props: any) {
 				</button>
 			)}
 			<div
-				style={showChildren ? { display: "block" } : { display: "none" }}
-				className="pl-5 bg-zinc-800 duration-200 ease-in-out "
+				style={showChildren ? { maxHeight: "5000px", } : { maxHeight: "0" }}
+				className={showChildren ? "  pl-5 bg-zinc-800 duration-800 ease-in transition-all overflow-hidden" : " pl-5 bg-zinc-800 duration-800  transition-all overflow-hidden"}
 			>
 				{props.entry.children
 					? props.entry.children.map((e: any) => {
