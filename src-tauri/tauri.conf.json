@@ -98,10 +98,10 @@
     "windows": [
       {
         "fullscreen": false,
-        "height": 600,
+        "width": 800,
+        "height": 800,
         "resizable": true,
-        "title": "LightNote",
-        "width": 800
+        "title": "LightNote"  
       }
     ]
   }

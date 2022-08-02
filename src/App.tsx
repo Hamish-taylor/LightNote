@@ -15,7 +15,13 @@ import {
 	MdOutlineCreateNewFolder,
 } from "react-icons/md";
 import { IoMdArrowDropright, IoMdArrowDropdown } from "react-icons/io";
-import { VscChromeMaximize, VscGear, VscEdit, VscTrash, VscArrowSmallLeft } from "react-icons/vsc";
+import {
+	VscChromeMaximize,
+	VscGear,
+	VscEdit,
+	VscTrash,
+	VscArrowSmallLeft,
+} from "react-icons/vsc";
 import {
 	readDir,
 	BaseDirectory,
@@ -35,6 +41,7 @@ import SideBar from "./SideBar";
 import FileTree from "./FileTree";
 import FileTreeItem from "./FileTreeItem";
 import SplashScreen from "./SplashScreen";
+import { documentDir } from "@tauri-apps/api/path";
 
 //TODO:
 function App() {
@@ -52,8 +59,8 @@ function App() {
 		mainFolder: "",
 	});
 
+	let loaded = useRef(true);
 
-	
 	const [renaming, setRenaming] = useState("");
 
 	//Setting the window to frameless
@@ -67,6 +74,56 @@ function App() {
 	const [showEditorContext, setShowEditorContext] = useState(false);
 	const [showFileContext, setShowFileContext] = useState(false);
 	const [contextID, setContextID] = useState("");
+
+	useEffect(() => {
+		loadSettings();
+	}, []);
+
+	useEffect(() => {
+		if (settings.mainFolder !== "") {
+			console.log("reading files");
+			//save settings
+			saveSettings();
+			readFiles();
+			// loaded.current = true;
+		}else {
+			console.log("no main folder");
+			loaded.current = false;
+		}
+	}, [settings.mainFolder]);
+
+	useEffect(() => {
+		if(allPaths.length > 0) {
+		loaded.current = true;
+		}
+	}, [allPaths])
+	const saveSettings = async () => {
+		const path = await documentDir();
+		await writeTextFile(
+			path + "/LightWay" + "/LightWay.json",
+			JSON.stringify(settings)
+		);
+	};
+
+	const loadSettings = async () => {
+		let files = undefined;
+		const path = await documentDir();
+		console.log(path);
+		try {
+			files = await readDir(path + "/LightWay", { recursive: true });
+			let set = await readTextFile(
+				path + "/LightWay" + "/LightWay.json"
+			).then();
+			setSettings(JSON.parse(set));
+		} catch (error) {
+			files = await createDir(path + "/LightWay", { recursive: true });
+			await writeTextFile(
+				path + "/LightWay" + "/LightWay.json",
+				JSON.stringify(settings)
+			);
+		}
+		console.log(files);
+	};
 
 	const createNewFile = async () => {
 		let num = 0;
@@ -184,7 +241,6 @@ function App() {
 		return "folder";
 	};
 	const showFileBrowserLeaf = () => {
-		console.log(!showFileLeaf);
 		setShowFileLeaf(!showFileLeaf);
 	};
 
@@ -214,8 +270,10 @@ function App() {
 	};
 
 	const readFiles = async () => {
-		const entries = await readDir(settings.mainFolder, { recursive: true });
-		setAllPaths(entries);
+		if (settings.mainFolder != "") {
+			const entries = await readDir(settings.mainFolder, { recursive: true });
+			setAllPaths(entries);
+		}
 	};
 
 	const readFile = async (path: string) => {
@@ -242,12 +300,14 @@ function App() {
 			setCurrentFileName(name);
 		}
 		if (currentFilePath != "" && currentFilePath.includes(".md")) {
+			console.log("removing");
 			document.getElementById(currentFilePath)!.classList.remove("active");
 		}
 	};
 
 	const renderFolders = (entries: any[]) => {
 		entries = entries.filter((entry) => !(entry.name?.charAt(0) === "."));
+		console.log(entries);
 		entries.sort((a, b) => {
 			if (a.children && !b.children) {
 				return -1;
@@ -264,6 +324,7 @@ function App() {
 					return (
 						<FileTreeItem
 							entry={entry}
+							selected={currentFilePath}
 							changeSelected={changeSelected}
 							renaming={renaming == entry.path}
 						/>
@@ -273,6 +334,7 @@ function App() {
 		);
 	};
 
+	// const files = useMemo(() => renderFolders(allPaths), [allPaths]);
 	useEffect(() => {
 		// Query the element
 		const resizer = document.getElementById("resizeBar")!;
@@ -293,7 +355,6 @@ function App() {
 				clientY: number;
 			}) {
 				leftSide.classList.remove("transition-all");
-				console.log("doing stuff")
 				// Get the current mouse position
 				x = e.clientX;
 				y = e.clientY;
@@ -311,7 +372,6 @@ function App() {
 				clientX: number;
 				clientY: number;
 			}) {
-
 				// How far the mouse has been moved
 				const dx = e.clientX - x;
 
@@ -557,8 +617,12 @@ function App() {
 						</div>
 					</div>
 				) : null}
-				{settings.mainFolder == "" ? (
-					<SplashScreen setSettings={setSettings} settings={settings} readFiles={readFiles}></SplashScreen>
+				{settings.mainFolder == "" && !loaded.current ? (
+					<SplashScreen
+						setSettings={setSettings}
+						settings={settings}
+						readFiles={readFiles}
+					></SplashScreen>
 				) : (
 					<div className="z-0 flex flex-row h-full overflow-hidden">
 						{/* <div className="justify-between flex flex-col z-10 h-full bg-zinc-900">
@@ -597,7 +661,9 @@ function App() {
 							</div>
 							<div
 								id="folderTree"
-								className={ "bg-zinc-800 w-full h-full overflow-auto pb-10 text-sm text-ellipsis "}
+								className={
+									"bg-zinc-800 w-full h-full overflow-auto pb-10 text-sm text-ellipsis "
+								}
 							>
 								{renderFolders(allPaths)}
 							</div>

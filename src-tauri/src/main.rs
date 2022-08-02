@@ -3,6 +3,9 @@
   windows_subsystem = "windows"
 )]
 
+use tauri::Manager;
+
+
 #[tauri::command]
 fn deleteDir(path: &str) {
   println!("Deleting: {}", path);
@@ -20,6 +23,8 @@ fn deleteFile(path: &str) {
     println!("Error: {}", e);
   }
 }
+
+
 
 fn main() {
   tauri::Builder::default()
