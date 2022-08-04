@@ -88,6 +88,11 @@ const syntaxHighlighting = HighlightStyle.define([
 function Editor(props: any) {
 	const [editorState, setEditorState] = useState<EditorState>(undefined)
 
+	const width = () => {
+		const width = parseInt(props.settings.editorWidth.value).toString() + "px"
+		return width
+	}
+
 	useEffect(() => {
 	
 		
@@ -110,7 +115,8 @@ function Editor(props: any) {
 				EditorView.lineWrapping,
 				markdown({ base: markdownLanguage, codeLanguages: languages }),
 			]}
-			className="h-full border-white border-10 focus:border-10 outline-10 active:outline-10  max-w-[700px] m-auto flex   outline-white  bg-zinc-700 place-self-center"
+			className="h-full border-white border-10 focus:border-10 outline-10 active:outline-10   m-auto flex   outline-white  bg-zinc-700 place-self-center"
+			style={{maxWidth: width()}}
 			id="codeMirror"
 		></CodeMirror>
 

@@ -30,7 +30,7 @@ function SplashScreen(props: any) {
 
     const setMainFolder = async () => {
 		const set = props.settings;
-		set.mainFolder = selectedFolder;
+		set.mainFolder.value = selectedFolder;
 		props.setSettings(set);
 		await props.readFiles();
 	};

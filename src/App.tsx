@@ -45,6 +45,7 @@ import FileTree from "./FileTree";
 import FileTreeItem from "./FileTreeItem";
 import SplashScreen from "./SplashScreen";
 import { documentDir } from "@tauri-apps/api/path";
+import Settings from "./Settings";
 
 function TestHarness({ children }: { children?: React.ReactNode }) {
 	const [id, forceUpdate] = useReducer((x) => x + 1, 0);
@@ -74,9 +75,31 @@ function App() {
 	const [currentFileName, setCurrentFileName] = useState("");
 	const [wordCount, setWordCount] = useState(0);
 	const [settingsModal, setSettingsModal] = useState(false);
+	// const [settings, setSettings] = useState({
+	// 	editorWidth: 700,
+	// 	mainFolder: "",
+	// });
+
 	const [settings, setSettings] = useState({
-		editorWidth: 700,
-		mainFolder: "",
+		editorWidth: {
+			name : "Editor Width",
+			description : "The width of the editor in pixels",
+			value : 700,
+			range: [100, 1000],
+			type: "number",
+		},
+		mainFolder: {
+			name : "Main Folder",
+			description : "The main folder to use",
+			value : "",
+			type: "path",
+		},
+		testCheck : {
+			name : "Test Check",
+			description : "A test check",
+			value : false,
+			type: "toggle",
+		}
 	});
 
 	let loaded = useRef(true);
@@ -103,8 +126,14 @@ function App() {
 		loadSettings();
 	}, []);
 
+
 	useEffect(() => {
-		if (settings.mainFolder !== "") {
+		readFiles();
+		console.log('read files');
+	}, [settings.mainFolder.value]);
+
+	useEffect(() => {
+		if (settings.mainFolder.value !== "") {
 			console.log("reading files");
 			//save settings
 			saveSettings();
@@ -114,7 +143,7 @@ function App() {
 			console.log("no main folder");
 			loaded.current = false;
 		}
-	}, [settings.mainFolder]);
+	}, [settings.mainFolder.value]);
 
 	useEffect(() => {
 		if(allPaths.length > 0) {
@@ -156,25 +185,25 @@ function App() {
 
 		while (loop) {
 			try {
-				await readTextFile(settings.mainFolder + "/" + newFileName);
+				await readTextFile(settings.mainFolder.value + "/" + newFileName);
 				num += 1;
 				newFileName = "Untitled " + num + ".md";
 			} catch (error) {
-				await writeTextFile(settings.mainFolder + "/" + newFileName, "");
+				await writeTextFile(settings.mainFolder.value + "/" + newFileName, "");
 				loop = false;
 			}
 		}
 
 		await readFiles();
-		await setCurrentFilePath(settings.mainFolder + "/" + newFileName);
-		openNewFile(settings.mainFolder + "/" + newFileName, newFileName);
+		await setCurrentFilePath(settings.mainFolder.value + "/" + newFileName);
+		openNewFile(settings.mainFolder.value + "/" + newFileName, newFileName);
 	};
 
 	const createNewFolder = async () => {
 		let num = 0;
 		let loop = true;
 
-		let newFolderName = settings.mainFolder + "/" + "Untitled";
+		let newFolderName = settings.mainFolder.value + "/" + "Untitled";
 
 		while (loop) {
 			try {
@@ -182,7 +211,7 @@ function App() {
 				loop = false;
 			} catch (error) {
 				num += 1;
-				newFolderName = settings.mainFolder + "/" + "Untitled " + num;
+				newFolderName = settings.mainFolder.value + "/" + "Untitled " + num;
 			}
 		}
 
@@ -280,8 +309,8 @@ function App() {
 	};
 
 	const readFiles = async () => {
-		if (settings.mainFolder != "") {
-			const entries = await readDir(settings.mainFolder, { recursive: true });
+		if (settings.mainFolder.value != "") {
+			const entries = await readDir(settings.mainFolder.value, { recursive: true });
 			setAllPaths(entries);
 		}
 	};
@@ -555,90 +584,88 @@ function App() {
 						onClick={minimize}
 						className="bg-zinc-900 hover:bg-zinc-600 rounded-none border-none focus:outline-none bg-center z-20"
 					>
-						{" "}
-						<MdMinimize className="flex-1" />{" "}
+						<MdMinimize className="flex-1" />
 					</button>
 					<button
 						onClick={maximize}
 						className="bg-zinc-900 hover:bg-zinc-600 rounded-none border-none focus:outline-none z-20"
 					>
-						{" "}
-						<VscChromeMaximize />{" "}
+						<VscChromeMaximize />
 					</button>
 					<button
 						onClick={close}
 						className="bg-zinc-900 hover:bg-red-600 rounded-none border-none focus:outline-none z-20"
 					>
-						{" "}
-						<MdClear />{" "}
+						<MdClear />
 					</button>
 				</div>
 				{settingsModal ? (
-					<div className="z-20 top-0 left-0  w-screen h-screen  absolute flex place-content-center">
-						<div
-							onClick={showSettingsModal}
-							className="absolute z-40  bg-black opacity-50 w-full h-full"
-						></div>
-						<div className=" z-50 opacity-100 relative  ml-auto mr-auto mt-auto top-0 bottom-0 mb-auto  left-0 right-0  w-4/5 h-4/5 bg-zinc-800  rounded-xl border-zinc-900 shadow-lg">
-							<div className="justify-center">SETTINGS</div>
-							<button
-								onClick={showSettingsModal}
-								className="absolute right-0 top-0 text-zinc-400 hover:text-zinc-100 bg-transparent rounded-none border-none focus:outline-none z-20"
-							>
-								{" "}
-								<MdClear />{" "}
-							</button>
-							<br />
-							{/* <div className="grid grid-rows-3 grid-flow-col gap-4 text-center ">
-              <div className="row-span-3 bg-gray-900 ">01</div>
-              <div className="col-span-2 bg-gray-900 ">02</div>
-              <div className="row-span-2 col-span-2 bg-gray-900 ">03</div>
-            </div> */}
-							<div className="divider"></div>
-							<div className="flex flex-row w-full  px-10">
-								<div className=" flex-1 flex flex-col items-start">
-									<label className="flex-1">Editor Width </label>
-									<label className="flex-1 text-gray-400">
-										The width of the editor in pixels
-									</label>
-								</div>
-								<div className="text-end float flex-1 flex flex-col items-end">
-									<input
-										className="w-1/2"
-										type="number"
-										value={settings.editorWidth}
-										onChange={(e) => {
-											setSettings({
-												...settings,
-												editorWidth: parseInt(e.target.value),
-											}),
-												(document.getElementById("codeMirror")!.style.maxWidth =
-													e.target.value + "px");
-										}}
-									/>
-									<input
-										className="range range-primary w-1/2 "
-										type="range"
-										min="100"
-										max="2000"
-										value={settings.editorWidth}
-										onChange={(e) => {
-											setSettings({
-												...settings,
-												editorWidth: parseInt(e.target.value),
-											}),
-												(document.getElementById("codeMirror")!.style.maxWidth =
-													e.target.value + "px");
-										}}
-									/>
-								</div>
-								<div className="pl-2">px</div>
-							</div>
-							<div className="divider"></div>
-						</div>
-					</div>
+			// 		<div className="z-20 top-0 left-0  w-screen h-screen  absolute flex place-content-center">
+			// 			<div
+			// 				onClick={showSettingsModal}
+			// 				className="absolute z-40  bg-black opacity-50 w-full h-full"
+			// 			></div>
+			// 			<div className=" z-50 opacity-100 relative  ml-auto mr-auto mt-auto top-0 bottom-0 mb-auto  left-0 right-0  w-4/5 h-4/5 bg-zinc-800  rounded-xl border-zinc-900 shadow-lg">
+			// 				<div className="justify-center">SETTINGS</div>
+			// 				<button
+			// 					onClick={showSettingsModal}
+			// 					className="absolute right-0 top-0 text-zinc-400 hover:text-zinc-100 bg-transparent rounded-none border-none focus:outline-none z-20"
+			// 				>
+			// 					{" "}
+			// 					<MdClear />{" "}
+			// 				</button>
+			// 				<br />
+			// 				{/* <div className="grid grid-rows-3 grid-flow-col gap-4 text-center ">
+            //   <div className="row-span-3 bg-gray-900 ">01</div>
+            //   <div className="col-span-2 bg-gray-900 ">02</div>
+            //   <div className="row-span-2 col-span-2 bg-gray-900 ">03</div>
+            // </div> */}
+			// 				<div className="divider"></div>
+			// 				<div className="flex flex-row w-full  px-10">
+			// 					<div className=" flex-1 flex flex-col items-start">
+			// 						<label className="flex-1">Editor Width </label>
+			// 						<label className="flex-1 text-gray-400">
+			// 							The width of the editor in pixels
+			// 						</label>
+			// 					</div>
+			// 					<div className="text-end float flex-1 flex flex-col items-end">
+			// 						<input
+			// 							className="w-1/2"
+			// 							type="number"
+			// 							value={settings.editorWidth}
+			// 							onChange={(e) => {
+			// 								setSettings({
+			// 									...settings,
+			// 									editorWidth: parseInt(e.target.value),
+			// 								}),
+			// 									(document.getElementById("codeMirror")!.style.maxWidth =
+			// 										e.target.value + "px");
+			// 							}}
+			// 						/>
+			// 						<input
+			// 							className="range range-primary w-1/2 "
+			// 							type="range"
+			// 							min="100"
+			// 							max="2000"
+			// 							value={settings.editorWidth}
+			// 							onChange={(e) => {
+			// 								setSettings({
+			// 									...settings,
+			// 									editorWidth: parseInt(e.target.value),
+			// 								}),
+			// 									(document.getElementById("codeMirror")!.style.maxWidth =
+			// 										e.target.value + "px");
+			// 							}}
+			// 						/>
+			// 					</div>
+			// 					<div className="pl-2">px</div>
+			// 				</div>
+			// 				<div className="divider"></div>
+			// 			</div>
+			// 		</div>
+					<Settings showSettingsModal={showSettingsModal} settings={settings} setSettings={setSettings}/>
 				) : null}
-				{settings.mainFolder == "" && !loaded.current ? (
+				{settings.mainFolder.value == "" && !loaded.current ? (
 					<SplashScreen
 						setSettings={setSettings}
 						settings={settings}
@@ -712,13 +739,15 @@ function App() {
 								currentFileContent={currentFileContent}
 								currentFilePath={currentFilePath}
 								className=" focus:outline-solid"
+								settings={settings}
+								
 							/>
 							{/* <div ref={editor1} /> */}
 							</TestHarness>
 						</div>
 					</div>
 				)}
-				{settings.mainFolder !== "" ? (
+				{settings.mainFolder.value !== "" ? (
 					<div
 						data-tauri-drag-region
 						className="flex  w-screen h-8 justify-end bg-zinc-800 text-center"
