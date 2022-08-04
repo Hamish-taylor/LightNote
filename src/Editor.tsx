@@ -1,14 +1,12 @@
-import CodeMirror, { useCodeMirror } from "@uiw/react-codemirror";
+import CodeMirror from "@uiw/react-codemirror";
 import { tags as t } from "@lezer/highlight";
-import { HighlightStyle, indentOnInput } from "@codemirror/language";
+import { indentOnInput } from "@codemirror/language";
 import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
 import { languages } from "@codemirror/language-data";
 import { history } from "@codemirror/commands";
 import { createTheme } from "@uiw/codemirror-themes";
-import { createRef, useEffect, useRef, useState,useImperativeHandle  } from "react";
-import { EditorState } from "@codemirror/state";
-import {basicSetup, EditorView} from "codemirror"
-import {ReactCodeMirrorRef } from "@uiw/react-codemirror";
+import { useEffect } from "react";
+import { EditorView } from "codemirror";
 export const transparentTheme = EditorView.theme(
 	{
 		"&": {
@@ -37,13 +35,13 @@ export const transparentTheme = EditorView.theme(
 
 const myTheme = createTheme({
 	theme: "light",
-	settings: {	
+	settings: {
 		background: "transparent !important",
 		foreground: "#ddd",
 		caret: "#0e9",
 		selection: "#036dd626",
 		selectionMatch: "#686337",
-		lineHighlight: "#8a91991a",
+		lineHighlight: "transparent !important",
 		gutterBackground: "transparent !important",
 		gutterForeground: "#ddd",
 		gutterBorder: "transparent !important",
@@ -67,59 +65,30 @@ const myTheme = createTheme({
 	],
 });
 
-const syntaxHighlighting = HighlightStyle.define([
-	{
-		tag: t.heading1,
-		fontSize: "1.6em",
-		fontWeight: "bold",
-	},
-	{
-		tag: t.heading2,
-		fontSize: "1.4em",
-		fontWeight: "bold",
-	},
-	{
-		tag: t.heading3,
-		fontSize: "1.2em",
-		fontWeight: "bold",
-	},
-]);
-
 function Editor(props: any) {
-	const [editorState, setEditorState] = useState<EditorState>(undefined)
-
 	const width = () => {
-		const width = parseInt(props.settings.editorWidth.value).toString() + "px"
-		return width
-	}
+		const width = parseInt(props.settings.editorWidth.value).toString() + "px";
+		return width;
+	};
 
-	useEffect(() => {
-	
-		
-	}, [props.currentFileContent])
+	useEffect(() => {}, [props.currentFileContent]);
 
 	return (
 		<CodeMirror
 			value={props.currentFileContent}
 			onChange={props.onChange}
 			width="100%"
-
-			onCreateEditor={(editor: any) => {
-				console.log(editor.viewState.state);
-				setEditorState(editor.viewState.state)
-			}}
 			extensions={[
-				history(),
+				history({ newGroupDelay: 500 }),
 				indentOnInput(),
 				myTheme,
 				EditorView.lineWrapping,
 				markdown({ base: markdownLanguage, codeLanguages: languages }),
 			]}
 			className="h-full border-white border-10 focus:border-10 outline-10 active:outline-10   m-auto flex   outline-white  bg-zinc-700 place-self-center"
-			style={{maxWidth: width()}}
+			style={{ maxWidth: width() }}
 			id="codeMirror"
 		></CodeMirror>
-
 	);
 }
 

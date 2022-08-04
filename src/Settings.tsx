@@ -32,9 +32,8 @@ function Settings(props: any) {
 							</div>
 							<div className="text-end float flex-1 flex flex-col items-end">
 								{value.type === "number" ? (
-								
-										<div className="w-full">
-											{/* <input
+									<div className="w-full">
+										{/* <input
 												type="number"
 												value={props.settings[key].value}
 												onChange={(e) => {
@@ -47,7 +46,10 @@ function Settings(props: any) {
 													});
 												}}
 											/> */}
-											<div className="tooltip w-2/3" data-tip={value.value + "px"}>
+										<div
+											className="tooltip w-2/3"
+											data-tip={value.value + "px"}
+										>
 											<input
 												className="range range-primary "
 												type="range"
@@ -64,9 +66,8 @@ function Settings(props: any) {
 													});
 												}}
 											/>
-											</div>
 										</div>
-						
+									</div>
 								) : value.type === "path" ? (
 									<div className="flex-col flex w-2/3">
 										<div className="tooltip pb-2" data-tip={value.value}>
@@ -74,25 +75,29 @@ function Settings(props: any) {
 												{value.value}
 											</div>
 										</div>
-										<div className="tooltip self-end flex-1" data-tip="Change notes folder ">
-										<a
-											onClick={() => openFolder(key)}
-											className="btn bg-zinc-700 hover:border-blue-400 border-transparent outline-none text-white btn-sm h-[50px] w-[80px] "
+										<div
+											className="tooltip self-end flex-1"
+											data-tip="Change notes folder "
 										>
-											
-											Change
-										</a>
+											<a
+												onClick={() => openFolder(key)}
+												className="btn bg-zinc-700 hover:border-blue-400 border-transparent outline-none text-white btn-sm h-[50px] w-[80px] "
+											>
+												Change
+											</a>
 										</div>
 									</div>
 								) : value.type === "toggle" ? (
 									<div className="form-control flex">
-										<span className="label-text flex-1 self-end ">Remember me</span>
+										<span className="label-text flex-1 self-end ">
+											Remember me
+										</span>
 										<label className="label cursor-pointer flex-1 self-end">
 											<input
 												type="checkbox"
 												className="toggle"
 												onChange={(e) => {
-													console.log(e)
+													console.log(e);
 												}}
 											/>
 										</label>

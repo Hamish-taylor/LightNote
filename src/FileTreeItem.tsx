@@ -15,10 +15,10 @@ function FileTreeItem(props: any) {
 		return "folder";
 	};
 
-	const cleanChildren = (entries:FileEntry[]) =>{
+	const cleanChildren = (entries: FileEntry[]) => {
 		entries = entries.filter((entry) => !(entry.name?.charAt(0) === "."));
 		return entries;
-	}
+	};
 
 	return (
 		<div className="bg-transparent ">
@@ -39,25 +39,24 @@ function FileTreeItem(props: any) {
 					id={props.entry.path}
 					type="button"
 					onClick={() => {
-						props.changeSelected(props.entry.path, props.entry.name);
-						setShowChildren(!showChildren);
+						if (isFileOrFolder(props.entry.path) == "file") {
+							props.changeSelected({
+								name: props.entry.name,
+								path: props.entry.path,
+							});
+						} else {
+							setShowChildren(!showChildren);
+						}
 					}}
 					contentEditable={props.renaming}
 					onBlur={(e) => {}}
 					className={
-						props.renaming == true
-							? "renaming select-all bg-transparent flex flex-1 text-left w-full outline-none border-none rounded-none focus:rounded-none focused hover:bg-zinc-600 focus:outline-none "
+						props.selected === props.entry.path
+							? "active bg-transparent flex flex-1 text-left w-full outline-none border-none rounded-none focus:rounded-none focused hover:bg-zinc-600 focus:outline-none "
 							: " bg-transparent flex flex-1 text-left w-full outline-none border-none rounded-none focus:rounded-none focused hover:bg-zinc-600 focus:outline-none "
 					}
 				>
-					<div
-						id={props.entry.path}
-						className={
-							props.renaming == true
-								? "select-all border-blue-600 border-1 outline-2 outline-blue-600 outline-dotted bg-zinc-700"
-								: " "
-						}
-					>
+					<div id={props.entry.path} className={" "}>
 						{props.entry.name}
 					</div>
 					{isFileOrFolder(props.entry.path) == "folder" ? (
@@ -66,13 +65,21 @@ function FileTreeItem(props: any) {
 				</button>
 			)}
 			<div
-				style={showChildren ? { maxHeight: "5000px", } : { maxHeight: "0" }}
-				className={showChildren ? "  pl-5 bg-zinc-800 duration-800 ease-in transition-all overflow-hidden" : " pl-5 bg-zinc-800 duration-800  transition-all overflow-hidden"}
+				style={showChildren ? { maxHeight: "5000px" } : { maxHeight: "0" }}
+				className={
+					showChildren
+						? "  pl-5 bg-zinc-800 duration-800 ease-in transition-all overflow-hidden"
+						: " pl-5 bg-zinc-800 duration-800  transition-all overflow-hidden"
+				}
 			>
 				{props.entry.children && showChildren
 					? cleanChildren(props.entry.children).map((e: any) => {
 							return (
-								<FileTreeItem entry={e} changeSelected={props.changeSelected} selected={props.selected} />
+								<FileTreeItem
+									entry={e}
+									changeSelected={props.changeSelected}
+									selected={props.selected}
+								/>
 							);
 					  })
 					: null}

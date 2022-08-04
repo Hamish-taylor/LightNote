@@ -1,47 +1,34 @@
-import { Fragment, useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
+import {
+	Fragment,
+	useCallback,
+	useEffect,
+	useReducer,
+	useRef,
+	useState,
+} from "react";
 import "./App.css";
 
-import { Text } from "@codemirror/state";
-
-
 import { appWindow } from "@tauri-apps/api/window";
-import { AiFillFire } from "react-icons/ai";
 import {
 	MdClear,
 	MdMinimize,
-	MdReadMore,
-	MdKeyboardArrowLeft,
-	MdMenuOpen,
-	MdMenu,
-	MdFolderOpen,
 	MdOutlineInsertDriveFile,
 	MdOutlineCreateNewFolder,
 } from "react-icons/md";
-import { IoMdArrowDropright, IoMdArrowDropdown } from "react-icons/io";
-import {
-	VscChromeMaximize,
-	VscGear,
-	VscEdit,
-	VscTrash,
-	VscArrowSmallLeft,
-} from "react-icons/vsc";
+import { VscChromeMaximize, VscEdit, VscTrash } from "react-icons/vsc";
 import {
 	readDir,
-	BaseDirectory,
 	FileEntry,
 	readTextFile,
 	writeTextFile,
-	renameFile,
 	createDir,
-	removeDir,
-	removeFile,
 } from "@tauri-apps/api/fs";
 
 import { fs, invoke } from "@tauri-apps/api";
 
 import Editor from "./Editor";
 import SideBar from "./SideBar";
-import FileTree from "./FileTree";
+
 import FileTreeItem from "./FileTreeItem";
 import SplashScreen from "./SplashScreen";
 import { documentDir } from "@tauri-apps/api/path";
@@ -49,20 +36,25 @@ import Settings from "./Settings";
 
 function TestHarness({ children }: { children?: React.ReactNode }) {
 	const [id, forceUpdate] = useReducer((x) => x + 1, 0);
-	
 
-	document.addEventListener('file-read', () =>{
+	document.addEventListener("file-read", () => {
 		forceUpdate();
-		console.log('forceupdatee');
-	})
+		// setChangeFile(false);
+		console.log("forceupdatee");
+	});
+
+	// useEffect(() => {
+	// 	console.log('forceupdate');
+	// 	forceUpdate();
+	// 	changeFile = false;
+	// }, [changeFile])
 
 	return (
-	  <>
-		<Fragment key={id}>{children}</Fragment>
-	  </>
+		<>
+			<Fragment key={id}>{children}</Fragment>
+		</>
 	);
-  }
-
+}
 
 //TODO:
 function App() {
@@ -71,10 +63,11 @@ function App() {
 	const [showFileLeaf, setShowFileLeaf] = useState(false);
 	const [folderLeafWidth, setFolderLeafWidth] = useState(300);
 	const [currentFileContent, setCurrentFileContent] = useState("");
-	const [currentFilePath, setCurrentFilePath] = useState("");
-	const [currentFileName, setCurrentFileName] = useState("");
+	//const [currentFilePath, setCurrentFilePath] = useState("");
+	//const [currentFileName, setCurrentFileName] = useState("");
 	const [wordCount, setWordCount] = useState(0);
 	const [settingsModal, setSettingsModal] = useState(false);
+	const [currentFile, setCurrentFile] = useState({ name: "", path: "" });
 	// const [settings, setSettings] = useState({
 	// 	editorWidth: 700,
 	// 	mainFolder: "",
@@ -82,24 +75,24 @@ function App() {
 
 	const [settings, setSettings] = useState({
 		editorWidth: {
-			name : "Editor Width",
-			description : "The width of the editor in pixels",
-			value : 700,
+			name: "Editor Width",
+			description: "The width of the editor in pixels",
+			value: 700,
 			range: [100, 1000],
 			type: "number",
 		},
 		mainFolder: {
-			name : "Main Folder",
-			description : "The main folder to use",
-			value : "",
+			name: "Main Folder",
+			description: "The main folder to use",
+			value: "",
 			type: "path",
 		},
-		testCheck : {
-			name : "Test Check",
-			description : "A test check",
-			value : false,
+		testCheck: {
+			name: "Test Check",
+			description: "A test check",
+			value: false,
 			type: "toggle",
-		}
+		},
 	});
 
 	let loaded = useRef(true);
@@ -120,16 +113,16 @@ function App() {
 
 	const [changeFile, setChangeFile] = useState(false);
 
+	// let changeFile = useRef(false);
 	//const [id, forceUpdate] = useReducer((x) => x + 1, 0);
 
 	useEffect(() => {
 		loadSettings();
 	}, []);
 
-
 	useEffect(() => {
 		readFiles();
-		console.log('read files');
+		console.log("read files");
 	}, [settings.mainFolder.value]);
 
 	useEffect(() => {
@@ -139,17 +132,17 @@ function App() {
 			saveSettings();
 			readFiles();
 			// loaded.current = true;
-		}else {
+		} else {
 			console.log("no main folder");
 			loaded.current = false;
 		}
 	}, [settings.mainFolder.value]);
 
 	useEffect(() => {
-		if(allPaths.length > 0) {
-		loaded.current = true;
+		if (allPaths.length > 0) {
+			loaded.current = true;
 		}
-	}, [allPaths])
+	}, [allPaths]);
 	const saveSettings = async () => {
 		const path = await documentDir();
 		await writeTextFile(
@@ -195,7 +188,7 @@ function App() {
 		}
 
 		await readFiles();
-		await setCurrentFilePath(settings.mainFolder.value + "/" + newFileName);
+		setCurrentFile({ name: newFileName, path: settings.mainFolder.value });
 		openNewFile(settings.mainFolder.value + "/" + newFileName, newFileName);
 	};
 
@@ -303,34 +296,27 @@ function App() {
 
 	const openNewFile = async (path: string, name: string) => {
 		if (name.includes(".md")) {
-			setCurrentFilePath(path);
-			setCurrentFileName(name);
+			setCurrentFile({ name: name, path: path });
 		}
 	};
 
 	const readFiles = async () => {
 		if (settings.mainFolder.value != "") {
-			const entries = await readDir(settings.mainFolder.value, { recursive: true });
+			const entries = await readDir(settings.mainFolder.value, {
+				recursive: true,
+			});
 			setAllPaths(entries);
 		}
 	};
-
+	const customEvent = new CustomEvent("file-read");
 	const readFile = async (path: string) => {
+		console.log(path);
 		const file = await readTextFile(path);
 		setCurrentFileContent(file);
 		setChangeFile(true);
-	
-	}
 
-	useEffect(() => {
-		console.log("useEffect");
-		if(changeFile) {
-			const customEvent = new CustomEvent("file-read");
-			document.dispatchEvent(customEvent);
-			setChangeFile(false);
-		}
-
-	}, [currentFileContent]);
+		document.dispatchEvent(customEvent);
+	};
 
 	const countWords = (str: string) => {
 		var count = 0;
@@ -340,21 +326,15 @@ function App() {
 		setWordCount(count);
 	};
 
-	const changeSelected = async (path: string, name: string) => {
-		if (path != "" && path.includes(".md")) {
-			const elem = document.getElementById(path)!;
+	useEffect(() => {
+		if (currentFile.path != "" && currentFile.path.includes(".md")) {
+			const elem = document.getElementById(currentFile.path)!;
 			if (elem) {
-				document.getElementById(path)!.classList.add("active");
-				await readFile(path);
+				console.log("reading file");
+				readFile(currentFile.path);
 			}
-			setCurrentFilePath(path);
-			setCurrentFileName(name);
 		}
-		if (currentFilePath != "" && currentFilePath.includes(".md")) {
-			console.log("removing");
-			document.getElementById(currentFilePath)!.classList.remove("active");
-		}
-	};
+	}, [currentFile]);
 
 	const renderFolders = (entries: any[]) => {
 		entries = entries.filter((entry) => !(entry.name?.charAt(0) === "."));
@@ -374,8 +354,8 @@ function App() {
 					return (
 						<FileTreeItem
 							entry={entry}
-							selected={currentFilePath}
-							changeSelected={changeSelected}
+							selected={currentFile.path}
+							changeSelected={setCurrentFile}
 							renaming={renaming == entry.path}
 						/>
 					);
@@ -482,10 +462,8 @@ function App() {
 
 	const deleteFile = async (path: string) => {
 		const p = path.replace(":name", "");
-		if (currentFilePath == p) {
-			changeSelected("", "");
-			setCurrentFilePath("");
-			setCurrentFileName("");
+		if (currentFile.path == p) {
+			setCurrentFile({ path: "", name: "" });
 			setCurrentFileContent("");
 		}
 		if (isFileOrFolder(p) == "file") {
@@ -500,9 +478,9 @@ function App() {
 		async (value: any, viewUpdate: any) => {
 			//save the file
 			countWords(value);
-			await writeTextFile(currentFilePath, value);
+			await writeTextFile(currentFile.path, value);
 		},
-		[currentFilePath]
+		[currentFile.path]
 	);
 
 	return (
@@ -578,7 +556,7 @@ function App() {
 						data-tauri-drag-region
 						className="absolute text-center justify-center place-self-center w-full cursor-default  text-xs  z-10"
 					>
-						{currentFileName}
+						{currentFile.name}
 					</span>
 					<button
 						onClick={minimize}
@@ -600,70 +578,11 @@ function App() {
 					</button>
 				</div>
 				{settingsModal ? (
-			// 		<div className="z-20 top-0 left-0  w-screen h-screen  absolute flex place-content-center">
-			// 			<div
-			// 				onClick={showSettingsModal}
-			// 				className="absolute z-40  bg-black opacity-50 w-full h-full"
-			// 			></div>
-			// 			<div className=" z-50 opacity-100 relative  ml-auto mr-auto mt-auto top-0 bottom-0 mb-auto  left-0 right-0  w-4/5 h-4/5 bg-zinc-800  rounded-xl border-zinc-900 shadow-lg">
-			// 				<div className="justify-center">SETTINGS</div>
-			// 				<button
-			// 					onClick={showSettingsModal}
-			// 					className="absolute right-0 top-0 text-zinc-400 hover:text-zinc-100 bg-transparent rounded-none border-none focus:outline-none z-20"
-			// 				>
-			// 					{" "}
-			// 					<MdClear />{" "}
-			// 				</button>
-			// 				<br />
-			// 				{/* <div className="grid grid-rows-3 grid-flow-col gap-4 text-center ">
-            //   <div className="row-span-3 bg-gray-900 ">01</div>
-            //   <div className="col-span-2 bg-gray-900 ">02</div>
-            //   <div className="row-span-2 col-span-2 bg-gray-900 ">03</div>
-            // </div> */}
-			// 				<div className="divider"></div>
-			// 				<div className="flex flex-row w-full  px-10">
-			// 					<div className=" flex-1 flex flex-col items-start">
-			// 						<label className="flex-1">Editor Width </label>
-			// 						<label className="flex-1 text-gray-400">
-			// 							The width of the editor in pixels
-			// 						</label>
-			// 					</div>
-			// 					<div className="text-end float flex-1 flex flex-col items-end">
-			// 						<input
-			// 							className="w-1/2"
-			// 							type="number"
-			// 							value={settings.editorWidth}
-			// 							onChange={(e) => {
-			// 								setSettings({
-			// 									...settings,
-			// 									editorWidth: parseInt(e.target.value),
-			// 								}),
-			// 									(document.getElementById("codeMirror")!.style.maxWidth =
-			// 										e.target.value + "px");
-			// 							}}
-			// 						/>
-			// 						<input
-			// 							className="range range-primary w-1/2 "
-			// 							type="range"
-			// 							min="100"
-			// 							max="2000"
-			// 							value={settings.editorWidth}
-			// 							onChange={(e) => {
-			// 								setSettings({
-			// 									...settings,
-			// 									editorWidth: parseInt(e.target.value),
-			// 								}),
-			// 									(document.getElementById("codeMirror")!.style.maxWidth =
-			// 										e.target.value + "px");
-			// 							}}
-			// 						/>
-			// 					</div>
-			// 					<div className="pl-2">px</div>
-			// 				</div>
-			// 				<div className="divider"></div>
-			// 			</div>
-			// 		</div>
-					<Settings showSettingsModal={showSettingsModal} settings={settings} setSettings={setSettings}/>
+					<Settings
+						showSettingsModal={showSettingsModal}
+						settings={settings}
+						setSettings={setSettings}
+					/>
 				) : null}
 				{settings.mainFolder.value == "" && !loaded.current ? (
 					<SplashScreen
@@ -673,10 +592,6 @@ function App() {
 					></SplashScreen>
 				) : (
 					<div className="z-0 flex flex-row h-full overflow-hidden">
-						{/* <div className="justify-between flex flex-col z-10 h-full bg-zinc-900">
-          <button id="fileBrowser" onClick={showFileBrowserLeaf} className="text-lg text-zinc-500 hover:text-white bg-zinc-900 hover:bg-zinc-900 rounded-none border-none focus:outline-none ease-in-out duration-200"> {showFileLeaf ? <MdMenuOpen /> : <MdMenu />} </button>
-          <button id="fileBrowser" onClick={showSettingsModal} className='text-lg text-zinc-500 hover:text-white bg-zinc-900 hover:bg-zinc-900 rounded-none border-none focus:outline-none ease-in-out duration-200'> {showFileLeaf ? <VscGear /> : <VscGear />} </button>
-        </div> */}
 						<SideBar
 							showFileBrowserLeaf={showFileBrowserLeaf}
 							showFileLeaf={showFileLeaf}
@@ -728,21 +643,15 @@ function App() {
 							id="contentPane"
 							className="bg-zinc-700 w-full h-full overflow-auto flex-1 place-items-center "
 						>
-							{/* <Editor
-								onChange={onChange}
-								currentFileContent={currentFileContent}
-								currentFilePath={currentFilePath}
-							/> */}
 							<TestHarness>
 								<Editor
-								onChange={onChange}
-								currentFileContent={currentFileContent}
-								currentFilePath={currentFilePath}
-								className=" focus:outline-solid"
-								settings={settings}
-								
-							/>
-							{/* <div ref={editor1} /> */}
+									onChange={onChange}
+									currentFileContent={currentFileContent}
+									currentFilePath={currentFile.path}
+									className=" focus:outline-solid"
+									settings={settings}
+								/>
+								{/* <div ref={editor1} /> */}
 							</TestHarness>
 						</div>
 					</div>
