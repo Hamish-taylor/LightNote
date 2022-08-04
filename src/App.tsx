@@ -1,5 +1,8 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import "./App.css";
+
+import { Text } from "@codemirror/state";
+
 
 import { appWindow } from "@tauri-apps/api/window";
 import { AiFillFire } from "react-icons/ai";
@@ -43,6 +46,23 @@ import FileTreeItem from "./FileTreeItem";
 import SplashScreen from "./SplashScreen";
 import { documentDir } from "@tauri-apps/api/path";
 
+function TestHarness({ children }: { children?: React.ReactNode }) {
+	const [id, forceUpdate] = useReducer((x) => x + 1, 0);
+	
+
+	document.addEventListener('file-read', () =>{
+		forceUpdate();
+		console.log('forceupdatee');
+	})
+
+	return (
+	  <>
+		<Fragment key={id}>{children}</Fragment>
+	  </>
+	);
+  }
+
+
 //TODO:
 function App() {
 	//const [mainFolder, setMainFolder] = useState<folder>(new folder({ name: "Main", path: "C:/Users/Hamis/Documents/NotesCopy" }))
@@ -74,6 +94,10 @@ function App() {
 	const [showEditorContext, setShowEditorContext] = useState(false);
 	const [showFileContext, setShowFileContext] = useState(false);
 	const [contextID, setContextID] = useState("");
+
+	const [changeFile, setChangeFile] = useState(false);
+
+	//const [id, forceUpdate] = useReducer((x) => x + 1, 0);
 
 	useEffect(() => {
 		loadSettings();
@@ -248,21 +272,7 @@ function App() {
 		setSettingsModal(!settingsModal);
 	};
 
-	// useEffect(() => {
-	// 	const elem = document.getElementById("FileBrowserLeaf")!;
-	// 	if (elem) {
-	// 		elem.classList.add("transition-all");
-	// 		elem.addEventListener(
-	// 			"transitionend",
-	// 			function (event) {
-	// 				elem.classList.remove("transition-all");
-	// 			},
-	// 			false
-	// 		);
-	// 	}
-	// }, [showFileLeaf]);
-
-	const openNewFile = (path: string, name: string) => {
+	const openNewFile = async (path: string, name: string) => {
 		if (name.includes(".md")) {
 			setCurrentFilePath(path);
 			setCurrentFileName(name);
@@ -279,7 +289,19 @@ function App() {
 	const readFile = async (path: string) => {
 		const file = await readTextFile(path);
 		setCurrentFileContent(file);
-	};
+		setChangeFile(true);
+	
+	}
+
+	useEffect(() => {
+		console.log("useEffect");
+		if(changeFile) {
+			const customEvent = new CustomEvent("file-read");
+			document.dispatchEvent(customEvent);
+			setChangeFile(false);
+		}
+
+	}, [currentFileContent]);
 
 	const countWords = (str: string) => {
 		var count = 0;
@@ -289,12 +311,12 @@ function App() {
 		setWordCount(count);
 	};
 
-	const changeSelected = (path: string, name: string) => {
+	const changeSelected = async (path: string, name: string) => {
 		if (path != "" && path.includes(".md")) {
 			const elem = document.getElementById(path)!;
 			if (elem) {
 				document.getElementById(path)!.classList.add("active");
-				readFile(path);
+				await readFile(path);
 			}
 			setCurrentFilePath(path);
 			setCurrentFileName(name);
@@ -307,7 +329,6 @@ function App() {
 
 	const renderFolders = (entries: any[]) => {
 		entries = entries.filter((entry) => !(entry.name?.charAt(0) === "."));
-		console.log(entries);
 		entries.sort((a, b) => {
 			if (a.children && !b.children) {
 				return -1;
@@ -680,10 +701,20 @@ function App() {
 							id="contentPane"
 							className="bg-zinc-700 w-full h-full overflow-auto flex-1 place-items-center "
 						>
-							<Editor
+							{/* <Editor
 								onChange={onChange}
 								currentFileContent={currentFileContent}
+								currentFilePath={currentFilePath}
+							/> */}
+							<TestHarness>
+								<Editor
+								onChange={onChange}
+								currentFileContent={currentFileContent}
+								currentFilePath={currentFilePath}
+								className=" focus:outline-solid"
 							/>
+							{/* <div ref={editor1} /> */}
+							</TestHarness>
 						</div>
 					</div>
 				)}

@@ -22,6 +22,21 @@ h1 {
   line-height: 1.1;
 }
 
+.ͼ1.cm-editor.cm-focused {
+  outline: none;
+}
+a:active
+    {
+    outline: none !important;
+    }
+
+    a:focus
+{
+-moz-outline-style: none !important;
+}
+a:focus { outline:none !important }
+
+
 button {
   border-radius: 8px;
   border: 1px solid transparent;

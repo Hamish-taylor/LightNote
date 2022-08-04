@@ -21,12 +21,12 @@ function FileTreeItem(props: any) {
 	}
 
 	return (
-		<div className="bg-zinc-800 ">
+		<div className="bg-transparent ">
 			{isFileOrFolder(props.entry.path) == "none" ? (
 				<div className="tooltip " data-tip="Invalid filetype">
 					<button
 						id={props.entry.path}
-						className=" bg-zinc-800 opacity-25 flex flex-1 text-left w-full outline-none border-none rounded-none focus:rounded-none focused hover:bg-zinc-600 focus:outline-none "
+						className=" bg-transparent opacity-25 flex flex-1 text-left w-full outline-none border-none rounded-none focus:rounded-none focused hover:bg-zinc-600 focus:outline-none "
 					>
 						<div id={props.entry.path + ":name"}>{props.entry.name}</div>
 						{isFileOrFolder(props.entry.path) == "folder" ? (
@@ -37,7 +37,7 @@ function FileTreeItem(props: any) {
 			) : (
 				<button
 					id={props.entry.path}
-					
+					type="button"
 					onClick={() => {
 						props.changeSelected(props.entry.path, props.entry.name);
 						setShowChildren(!showChildren);
@@ -46,8 +46,8 @@ function FileTreeItem(props: any) {
 					onBlur={(e) => {}}
 					className={
 						props.renaming == true
-							? "renaming select-all bg-zinc-800 flex flex-1 text-left w-full outline-none border-none rounded-none focus:rounded-none focused hover:bg-zinc-600 focus:outline-none "
-							: " bg-zinc-800 flex flex-1 text-left w-full outline-none border-none rounded-none focus:rounded-none focused hover:bg-zinc-600 focus:outline-none "
+							? "renaming select-all bg-transparent flex flex-1 text-left w-full outline-none border-none rounded-none focus:rounded-none focused hover:bg-zinc-600 focus:outline-none "
+							: " bg-transparent flex flex-1 text-left w-full outline-none border-none rounded-none focus:rounded-none focused hover:bg-zinc-600 focus:outline-none "
 					}
 				>
 					<div

@@ -7,6 +7,18 @@
 }
 
 
+a:active
+    {
+    outline: none !important;
+    }
+
+    a:focus
+{
+-moz-outline-style: none !important;
+}
+a:focus { outline:none !important }
+
+
 .logo {
   height: 6em;
   padding: 1.5em;
