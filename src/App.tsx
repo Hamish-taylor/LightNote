@@ -30,7 +30,6 @@ import Editor from "./Editor";
 import SideBar from "./SideBar";
 
 import FileTreeItem from "./FileTreeItem";
-import SplashScreen from "./SplashScreen";
 import { documentDir } from "@tauri-apps/api/path";
 import Settings from "./Settings";
 
@@ -95,8 +94,6 @@ function App() {
 		},
 	});
 
-	let loaded = useRef(true);
-
 	const [renaming, setRenaming] = useState("");
 
 	//Setting the window to frameless
@@ -120,10 +117,6 @@ function App() {
 		loadSettings();
 	}, []);
 
-	useEffect(() => {
-		readFiles();
-		console.log("read files");
-	}, [settings.mainFolder.value]);
 
 	useEffect(() => {
 		if (settings.mainFolder.value !== "") {
@@ -134,15 +127,11 @@ function App() {
 			// loaded.current = true;
 		} else {
 			console.log("no main folder");
-			loaded.current = false;
+			loadSettings();
 		}
-	}, [settings.mainFolder.value]);
+	}, [settings]);
 
-	useEffect(() => {
-		if (allPaths.length > 0) {
-			loaded.current = true;
-		}
-	}, [allPaths]);
+
 	const saveSettings = async () => {
 		const path = await documentDir();
 		await writeTextFile(
@@ -168,7 +157,6 @@ function App() {
 				JSON.stringify(settings)
 			);
 		}
-		console.log(files);
 	};
 
 	const createNewFile = async () => {
@@ -584,13 +572,6 @@ function App() {
 						setSettings={setSettings}
 					/>
 				) : null}
-				{settings.mainFolder.value == "" && !loaded.current ? (
-					<SplashScreen
-						setSettings={setSettings}
-						settings={settings}
-						readFiles={readFiles}
-					></SplashScreen>
-				) : (
 					<div className="z-0 flex flex-row h-full overflow-hidden">
 						<SideBar
 							showFileBrowserLeaf={showFileBrowserLeaf}
@@ -655,7 +636,6 @@ function App() {
 							</TestHarness>
 						</div>
 					</div>
-				)}
 				{settings.mainFolder.value !== "" ? (
 					<div
 						data-tauri-drag-region

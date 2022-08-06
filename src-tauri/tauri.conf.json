@@ -101,7 +101,18 @@
         "width": 800,
         "height": 800,
         "resizable": true,
-        "title": "LightNote"  
+        "title": "LightNote",  
+        "decorations": false,
+        "visible": false
+      },
+      {
+        "fullscreen": false,
+        "width": 700,
+        "height": 700,
+        "resizable": false,
+        "visible" : false,
+        "url": "splashscreen.html",
+        "label": "splashscreen"
       }
     ]
   }

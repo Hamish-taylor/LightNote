@@ -2,12 +2,39 @@ import { useState } from "react";
 import { AiFillFire } from "react-icons/ai";
 import { open } from "@tauri-apps/api/dialog";
 import { VscArrowSmallLeft } from "react-icons/vsc";
-import { fs } from "@tauri-apps/api";
+import { fs, invoke } from "@tauri-apps/api";
+import { documentDir } from "@tauri-apps/api/path";
+import { createDir, readDir, readTextFile, writeTextFile } from "@tauri-apps/api/fs";
+import "./App.css";
 
-function SplashScreen(props: any) {
+function SplashScreen() {
 	const [slideSplashScreen, setSlideSplashScreen] = useState(false);
 	const [selectedFolder, setSelectedFolder] = useState("");
 	const [selectedFolderForCreate, setSelectedFolderForCreate] = useState("");
+	
+	const [initialSettings, setInitialSettings] = useState({
+		editorWidth: {
+			name: "Editor Width",
+			description: "The width of the editor in pixels",
+			value: 700,
+			range: [100, 1000],
+			type: "number",
+		},
+		mainFolder: {
+			name: "Main Folder",
+			description: "The main folder to use",
+			value: "",
+			type: "path",
+		},
+		testCheck: {
+			name: "Test Check",
+			description: "A test check",
+			value: false,
+			type: "toggle",
+		},
+	});
+	
+	
 	const openFolder = async () => {
 		const selected = await open({
 			multiple: true,
@@ -28,11 +55,41 @@ function SplashScreen(props: any) {
 		}
 	};
 
+	const loadSettings = async () => {
+		let files = undefined;
+		const path = await documentDir();
+		console.log(path);
+		try {
+			files = await readDir(path + "/LightWay", { recursive: true });
+			let set = await readTextFile(
+				path + "/LightWay" + "/LightWay.json"
+			).then();
+			setInitialSettings(JSON.parse(set));
+		} catch (error) {
+			files = await createDir(path + "/LightWay", { recursive: true });
+			await writeTextFile(
+			    path + "/LightWay" + "/LightWay.json",
+			    JSON.stringify(initialSettings)
+			);
+		}
+	};
+
+	
+
+	const saveSettings = async () => {
+		const path = await documentDir();
+		await writeTextFile(
+			path + "/LightWay" + "/LightWay.json",
+			JSON.stringify(initialSettings)
+		);
+		invoke('close_splashscreen')
+	}
+
 	const setMainFolder = async () => {
-		const set = props.settings;
+		const set = initialSettings;
 		set.mainFolder.value = selectedFolder;
-		props.setSettings(set);
-		await props.readFiles();
+		setInitialSettings(set);
+		saveSettings();
 	};
 
 	const createMainFolder = async () => {
@@ -41,10 +98,10 @@ function SplashScreen(props: any) {
 		).value;
 		const path = selectedFolderForCreate;
 		await fs.createDir(path + "/" + folderName);
-		const set = props.settings;
-		set.mainFolder = path + "/" + folderName;
-		props.setSettings(set);
-		await props.readFiles();
+		const set = initialSettings;
+		set.mainFolder.value = path + "/" + folderName;
+		setInitialSettings(set);
+		saveSettings();
 	};
 	return (
 		<div
@@ -240,7 +297,7 @@ function SplashScreen(props: any) {
 						<div className="tooltip" data-tip="Missing information">
 							<button
 								disabled={true}
-								className="  bg-blue-400  duration-300 hover:bg-red-500 outline-none focus:border-none focus:outline-none focus:bg-red-500 border-none"
+								className="  bg-blue-400  duration-300 hover:bg-red-500 outline-none focus:border-none focus:outline-none focus:bg-red-500 border-none w-[80px] h-[40px]"
 								onClick={slideSplashScreen ? createMainFolder : setMainFolder}
 							>
 								Accept
@@ -252,7 +309,7 @@ function SplashScreen(props: any) {
 						<div className="tooltip" data-tip="Missing information">
 							<button
 								disabled={true}
-								className="  bg-blue-400  duration-300 hover:bg-red-500 outline-none focus:border-none focus:outline-none focus:bg-red-500 border-none"
+								className="  bg-blue-400  duration-300 hover:bg-red-500 outline-none focus:border-none focus:outline-none focus:bg-red-500 border-none w-[80px] h-[40px]"
 								onClick={slideSplashScreen ? createMainFolder : setMainFolder}
 							>
 								Accept
@@ -262,7 +319,7 @@ function SplashScreen(props: any) {
 				) : (
 					<div className="absolute bottom-10 ml-auto mr-auto mt-auto  mb-auto left-0 right-0">
 						<button
-							className="   bg-blue-400  duration-300 hover:animate-wiggle hover:w-[200px] outline-none focus:border-none focus:outline-none focus:bg-blue-500 border-none "
+							className="   bg-blue-400  duration-300 hover:animate-wiggle hover:w-[200px] outline-none focus:border-none focus:outline-none focus:bg-blue-500 border-none w-[80px] h-[40px]"
 							onClick={slideSplashScreen ? createMainFolder : setMainFolder}
 						>
 							Accept
