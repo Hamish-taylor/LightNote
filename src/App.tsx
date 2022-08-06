@@ -110,13 +110,14 @@ function App() {
 
 	const [changeFile, setChangeFile] = useState(false);
 
+	const [searchString, setSearchString] = useState("");
+
 	// let changeFile = useRef(false);
 	//const [id, forceUpdate] = useReducer((x) => x + 1, 0);
 
 	useEffect(() => {
 		loadSettings();
 	}, []);
-
 
 	useEffect(() => {
 		if (settings.mainFolder.value !== "") {
@@ -130,7 +131,6 @@ function App() {
 			loadSettings();
 		}
 	}, [settings]);
-
 
 	const saveSettings = async () => {
 		const path = await documentDir();
@@ -471,6 +471,73 @@ function App() {
 		[currentFile.path]
 	);
 
+	const renderSearch = () => {
+		let files = allPaths.filter((file: any) => {
+			return (
+				file.name!.toLowerCase().includes(searchString.toLowerCase()) &&
+				isFileOrFolder(file.path) == "file"
+			);
+		});
+		console.log(files);
+
+		files = files.sort((a: any, b: any) => {
+			return a.name!.toLowerCase().localeCompare(b.name!.toLowerCase());
+		});
+		return (
+			<div className="flex flex-col ">
+				<div className="text-center text-xl">Search for a note</div>
+				<div className="input-group  justify-center p-5">
+					<input
+						type="text"
+						onChange={(e) => setSearchString(e.target.value)}
+						placeholder="Search…"
+						className="input input-bordered outline-none border-none focus:outline-none focus:border-none"
+					/>
+					<button className="btn btn-square  outline-none border-none focus:outline-none focus:border-none">
+						<svg
+							xmlns="http://www.w3.org/2000/svg"
+							className="h-6 w-6"
+							fill="none"
+							viewBox="0 0 24 24"
+							stroke="currentColor"
+						>
+							<path
+								strokeLinecap="round"
+								strokeLinejoin="round"
+								strokeWidth="2"
+								d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+							/>
+						</svg>
+					</button>
+				</div>
+				{searchString != "" ? (
+					<div className="flex flex-col  h-full overflow-auto border-x  transition-colors hover:border-zinc-600  border-zinc-700 p-5 w-[400px]">
+						<div className="mr-5 text-right text-zinc-400">
+							{files.length} results
+						</div>
+						<div className="flex flex-col  h-full overflow-auto transform-all duration-700">
+							{files.map((entry: any) => {
+								return (
+									<div className="text-start">
+										<div className="divider m-0" />
+										<button
+											onClick={() =>
+												setCurrentFile({ name: entry.name, path: entry.path })
+											}
+											className=" bg-transparent h-fit hover:text-zinc-200 hover:bg-zinc-800 border-none focus:border-none focus:outline-none  rounded-none w-full text-start"
+										>
+											{entry.name}
+										</button>
+									</div>
+								);
+							})}
+						</div>
+					</div>
+				) : null}
+			</div>
+		);
+	};
+
 	return (
 		<div>
 			<div className="z-0 bg-zinc-900 flex flex-col w-screen h-screen overflow-hidden ">
@@ -572,58 +639,59 @@ function App() {
 						setSettings={setSettings}
 					/>
 				) : null}
-					<div className="z-0 flex flex-row h-full overflow-hidden">
-						<SideBar
-							showFileBrowserLeaf={showFileBrowserLeaf}
-							showFileLeaf={showFileLeaf}
-							showSettingsModal={showSettingsModal}
-						/>
-						<div
-							style={
-								showFileLeaf
-									? { width: folderLeafWidth + "px" }
-									: { width: "0px" }
-							}
-							className="z-0 relative h-full flex max-w-[80%] flex-col overflow-hidden transition-all"
-							id="FileBrowserLeaf"
-						>
-							<div className="rounded-tl-lg w-full justify-center flex bg-zinc-800 p-3">
-								<button
-									type="button"
-									onClick={createNewFile}
-									className="px-4 py-1 text-2xl  bg-zinc-800 text-zinc-500 font-semibold rounded-none border-none hover:text-white   focus:outline-none "
-								>
-									<MdOutlineInsertDriveFile />
-								</button>
-								<button
-									type="button"
-									onClick={createNewFolder}
-									className="px-4 py-1 text-2xl bg-zinc-800 text-zinc-500 font-semibold rounded-none border-none hover:text-white   focus:outline-none "
-								>
-									<MdOutlineCreateNewFolder />
-								</button>
-							</div>
-							<div
-								id="folderTree"
-								className={
-									"bg-zinc-800 w-full h-full overflow-auto pb-10 text-sm text-ellipsis "
-								}
+				<div className="z-0 flex flex-row h-full overflow-hidden">
+					<SideBar
+						showFileBrowserLeaf={showFileBrowserLeaf}
+						showFileLeaf={showFileLeaf}
+						showSettingsModal={showSettingsModal}
+					/>
+					<div
+						style={
+							showFileLeaf
+								? { width: folderLeafWidth + "px" }
+								: { width: "0px" }
+						}
+						className="z-0 relative h-full flex max-w-[80%] flex-col overflow-hidden transition-all"
+						id="FileBrowserLeaf"
+					>
+						<div className="rounded-tl-lg w-full justify-center flex bg-zinc-800 p-3">
+							<button
+								type="button"
+								onClick={createNewFile}
+								className="px-4 py-1 text-2xl  bg-zinc-800 text-zinc-500 font-semibold rounded-none border-none hover:text-white   focus:outline-none "
 							>
-								{renderFolders(allPaths)}
-							</div>
+								<MdOutlineInsertDriveFile />
+							</button>
+							<button
+								type="button"
+								onClick={createNewFolder}
+								className="px-4 py-1 text-2xl bg-zinc-800 text-zinc-500 font-semibold rounded-none border-none hover:text-white   focus:outline-none "
+							>
+								<MdOutlineCreateNewFolder />
+							</button>
 						</div>
 						<div
-							id="resizeBar"
+							id="folderTree"
 							className={
-								showFileLeaf
-									? "w-1 bg-zinc-700 hover:bg-sky-400 cursor-col-resize ease-in-out duration-300 delay-50"
-									: " rounded-tl-2xl w-1 bg-zinc-700 hover:bg-sky-400 cursor-col-resize ease-in-out duration-300 delay-50"
+								"bg-zinc-800 w-full h-full overflow-auto pb-10 text-sm text-ellipsis "
 							}
-						></div>
-						<div
-							id="contentPane"
-							className="bg-zinc-700 w-full h-full overflow-auto flex-1 place-items-center "
 						>
+							{renderFolders(allPaths)}
+						</div>
+					</div>
+					<div
+						id="resizeBar"
+						className={
+							showFileLeaf
+								? "w-1 bg-zinc-700 hover:bg-sky-400 cursor-col-resize ease-in-out duration-300 delay-50"
+								: " rounded-tl-2xl w-1 bg-zinc-700 hover:bg-sky-400 cursor-col-resize ease-in-out duration-300 delay-50"
+						}
+					></div>
+					<div
+						id="contentPane"
+						className="bg-zinc-700 w-full h-full overflow-auto flex-1 place-items-center "
+					>
+						{currentFile.path != "" ? (
 							<TestHarness>
 								<Editor
 									onChange={onChange}
@@ -634,8 +702,16 @@ function App() {
 								/>
 								{/* <div ref={editor1} /> */}
 							</TestHarness>
-						</div>
+						) : (
+							<div className="flex  w-full h-full flex-col overflow-hidden">
+								<div className={searchString != "" ? "form-control self-center  pt-40  transition-all duration-[500ms] overflow-hidden ease-in-out" :"form-control self-center  pt-[40vh]   transition-all duration-[500ms] ease-in-out overflow-hidden" }></div>
+								<div className={"flex  self-center h-[80%] transition-all  relative" }>
+									{renderSearch()}
+								</div>
+							</div>
+						)}
 					</div>
+				</div>
 				{settings.mainFolder.value !== "" ? (
 					<div
 						data-tauri-drag-region
