@@ -23,15 +23,6 @@ fn deleteFile(path: &str) {
     println!("Error: {}", e);
   }
 }
-#[tauri::command]
-async fn close_splashscreen(window: tauri::Window) {
-  // Close splashscreen
-  if let Some(splashscreen) = window.get_window("splashscreen") {
-    splashscreen.close().unwrap();
-  }
-  // Show main window
-  window.get_window("main").unwrap().show().unwrap();
-}
 
 fn loadSettings() -> String {
   let mut documents_dir = "";
@@ -52,34 +43,7 @@ fn main() {
     .invoke_handler(tauri::generate_handler![
       deleteDir,
       deleteFile,
-      close_splashscreen
     ])
-    .setup(|app| {
-      let splashscreen_window = app.get_window("splashscreen").unwrap();
-      let main_window = app.get_window("main").unwrap();
-      
-      // we perform the initialization code on a new task so the app doesn't freeze
-      tauri::async_runtime::spawn(async move {
-        // initialize your app here instead of sleeping :)
-        println!("Initializing...");
-        // std::thread::sleep(std::time::Duration::from_secs(2));
-        //check settings
-        let settings = json::parse(loadSettings().as_str()).unwrap();
-        if(settings["mainFolder"]["value"].as_str().unwrap() == "") {
-          splashscreen_window.show().unwrap();
-        }else {
-           splashscreen_window.close().unwrap();
-          main_window.show().unwrap();
-        }
-
-        //check if the settings are valid
-        
-
-
-       
-      });
-      Ok(())
-    })
     .run(tauri::generate_context!())
     .expect("error while running tauri application");
 }

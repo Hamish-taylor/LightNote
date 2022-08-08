@@ -19,19 +19,19 @@ function Settings(props: any) {
 		const settings = props.settings;
 		let ret: ReactNode[] = [];
 		{
-			Object.entries(settings).forEach(([key, value]) => {
+			Object.entries(settings).forEach(([key]) => {
 				ret.push(
 					<div>
 						<div className="divider"></div>
 						<div className="flex flex-row w-full  px-10">
 							<div className=" flex-1 flex flex-col items-start">
-								<label className="flex-1">{value.name} </label>
+								<label className="flex-1">{settings[key].name} </label>
 								<label className="flex-1 text-gray-400">
-									{value.description}
+									{settings[key].description}
 								</label>
 							</div>
 							<div className="text-end float flex-1 flex flex-col items-end">
-								{value.type === "number" ? (
+								{settings[key].type === "number" ? (
 									<div className="w-full">
 										{/* <input
 												type="number"
@@ -48,13 +48,13 @@ function Settings(props: any) {
 											/> */}
 										<div
 											className="tooltip w-2/3"
-											data-tip={value.value + "px"}
+											data-tip={settings[key].value + "px"}
 										>
 											<input
 												className="range range-primary "
 												type="range"
-												min={value.range[0]}
-												max={value.range[1]}
+												min={settings[key].range[0]}
+												max={settings[key].range[1]}
 												value={props.settings[key].value}
 												onChange={(e) => {
 													props.setSettings({
@@ -68,11 +68,11 @@ function Settings(props: any) {
 											/>
 										</div>
 									</div>
-								) : value.type === "path" ? (
+								) : settings[key].type === "path" ? (
 									<div className="flex-col flex w-2/3">
-										<div className="tooltip pb-2" data-tip={value.value}>
+										<div className="tooltip pb-2" data-tip={settings[key].value}>
 											<div className="text-blue-400 font-bold truncate  ">
-												{value.value}
+												{settings[key].value}
 											</div>
 										</div>
 										<div
@@ -87,7 +87,7 @@ function Settings(props: any) {
 											</a>
 										</div>
 									</div>
-								) : value.type === "toggle" ? (
+								) : settings[key].type === "toggle" ? (
 									<div className="form-control flex">
 										<span className="label-text flex-1 self-end ">
 											Remember me

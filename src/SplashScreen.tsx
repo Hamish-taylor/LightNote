@@ -2,12 +2,12 @@ import { useState } from "react";
 import { AiFillFire } from "react-icons/ai";
 import { open } from "@tauri-apps/api/dialog";
 import { VscArrowSmallLeft } from "react-icons/vsc";
-import { fs, invoke } from "@tauri-apps/api";
 import { documentDir } from "@tauri-apps/api/path";
 import { createDir, readDir, readTextFile, writeTextFile } from "@tauri-apps/api/fs";
 import "./App.css";
+import { fs } from "@tauri-apps/api";
 
-function SplashScreen() {
+function SplashScreen(props : any) {
 	const [slideSplashScreen, setSlideSplashScreen] = useState(false);
 	const [selectedFolder, setSelectedFolder] = useState("");
 	const [selectedFolderForCreate, setSelectedFolderForCreate] = useState("");
@@ -82,7 +82,7 @@ function SplashScreen() {
 			path + "/LightWay" + "/LightWay.json",
 			JSON.stringify(initialSettings)
 		);
-		invoke('close_splashscreen')
+		props.loadSettings();
 	}
 
 	const setMainFolder = async () => {

@@ -4,10 +4,11 @@
     "beforeBuildCommand": "npm run build",
     "beforeDevCommand": "npm run dev",
     "devPath": "http://localhost:5173",
-    "distDir": "../dist"
+    "distDir": "../dist",
+    "withGlobalTauri": true
   },
   "package": {
-    "productName": "Tauri-Note",
+    "productName": "LightNote",
     "version": "0.1.0"
   },
   "tauri": {
@@ -57,6 +58,7 @@
       }
     },
     "bundle": {
+      
       "active": true,
       "category": "DeveloperTool",
       "copyright": "",
@@ -87,6 +89,7 @@
         "certificateThumbprint": null,
         "digestAlgorithm": "sha256",
         "timestampUrl": ""
+
       }
     },
     "security": {
@@ -98,21 +101,13 @@
     "windows": [
       {
         "fullscreen": false,
-        "width": 800,
-        "height": 800,
+        "width": 1000,
+        "height": 1000,
         "resizable": true,
         "title": "LightNote",  
         "decorations": false,
-        "visible": false
-      },
-      {
-        "fullscreen": false,
-        "width": 700,
-        "height": 700,
-        "resizable": false,
-        "visible" : false,
-        "url": "splashscreen.html",
-        "label": "splashscreen"
+        "visible": true,
+        "url": "index.html"
       }
     ]
   }

@@ -32,6 +32,7 @@ import SideBar from "./SideBar";
 import FileTreeItem from "./FileTreeItem";
 import { documentDir } from "@tauri-apps/api/path";
 import Settings from "./Settings";
+import SplashScreen from "./SplashScreen";
 
 function TestHarness({ children }: { children?: React.ReactNode }) {
 	const [id, forceUpdate] = useReducer((x) => x + 1, 0);
@@ -42,12 +43,6 @@ function TestHarness({ children }: { children?: React.ReactNode }) {
 		console.log("forceupdatee");
 	});
 
-	// useEffect(() => {
-	// 	console.log('forceupdate');
-	// 	forceUpdate();
-	// 	changeFile = false;
-	// }, [changeFile])
-
 	return (
 		<>
 			<Fragment key={id}>{children}</Fragment>
@@ -57,7 +52,7 @@ function TestHarness({ children }: { children?: React.ReactNode }) {
 
 //TODO:
 function App() {
-	//const [mainFolder, setMainFolder] = useState<folder>(new folder({ name: "Main", path: "C:/Users/Hamis/Documents/NotesCopy" }))
+	const [mainFolder, setMainFolder] = useState<string | undefined>(undefined);
 	const [allPaths, setAllPaths] = useState<FileEntry[]>([]);
 	const [showFileLeaf, setShowFileLeaf] = useState(false);
 	const [folderLeafWidth, setFolderLeafWidth] = useState(300);
@@ -71,7 +66,6 @@ function App() {
 	// 	editorWidth: 700,
 	// 	mainFolder: "",
 	// });
-
 	const [settings, setSettings] = useState({
 		editorWidth: {
 			name: "Editor Width",
@@ -126,9 +120,12 @@ function App() {
 			saveSettings();
 			readFiles();
 			// loaded.current = true;
+
+			console.log("main folder: " + settings.mainFolder.value);
 		} else {
 			console.log("no main folder");
-			loadSettings();
+			//loadSettings();
+			console.log("main folder: " + mainFolder);
 		}
 	}, [settings]);
 
@@ -140,6 +137,59 @@ function App() {
 		);
 	};
 
+	const processFile = async (path: string, name: string) => {
+		const text = await readTextFile(path);
+		const lines = text.split("\n");
+
+		const countHeading = (text: string) => {
+			let count = 0;
+			let name = "";
+			for (let i = 0; i < text.length; i++) {
+				if (text[i] === "#") {
+					count++;
+				} else {
+					name += text[i];
+				}
+			}
+			name = name.trim();
+			return { count, name };
+		};
+
+		const process = (level: number, text: string[]) => {
+
+			let children = {};
+			let lines: string[] = [];
+			//console.log(level)
+			for (let i = 0; i < text.length; i++) {
+				const line = text[i];
+				if (line.startsWith("#")) {
+					const { count, name } = countHeading(line);
+					if (count > level) console.log(count, name,level);
+					if (count > level) {
+						const {remainder,data} = process(count,text.slice(i+1));
+						console.log(remainder,data);
+						text = remainder.slice(0);
+						i = 0;
+						children = {
+							...children,
+							[name] : data
+						};
+					} else if (count <= level) {
+						//console.log(lines,children);
+						return {remainder : text.slice(i-1), data: { lines: lines, children: children }};
+					}
+				} else {
+					lines.push(line);
+				}
+			}
+			return {remainder : [], data: { lines: lines, children: children }};
+		};
+
+		console.log("processing file: " + name);
+		const wow = process(0, lines);
+		console.log("{\"" + name + "\" : " + JSON.stringify(wow.data) + "}");
+	};
+
 	const loadSettings = async () => {
 		let files = undefined;
 		const path = await documentDir();
@@ -149,6 +199,7 @@ function App() {
 			let set = await readTextFile(
 				path + "/LightWay" + "/LightWay.json"
 			).then();
+			setMainFolder(JSON.parse(set).mainFolder.value);
 			setSettings(JSON.parse(set));
 		} catch (error) {
 			files = await createDir(path + "/LightWay", { recursive: true });
@@ -321,6 +372,7 @@ function App() {
 				console.log("reading file");
 				readFile(currentFile.path);
 			}
+			processFile(currentFile.path, currentFile.name);
 		}
 	}, [currentFile]);
 
@@ -478,7 +530,6 @@ function App() {
 				isFileOrFolder(file.path) == "file"
 			);
 		});
-		console.log(files);
 
 		files = files.sort((a: any, b: any) => {
 			return a.name!.toLowerCase().localeCompare(b.name!.toLowerCase());
@@ -639,79 +690,97 @@ function App() {
 						setSettings={setSettings}
 					/>
 				) : null}
-				<div className="z-0 flex flex-row h-full overflow-hidden">
-					<SideBar
-						showFileBrowserLeaf={showFileBrowserLeaf}
-						showFileLeaf={showFileLeaf}
-						showSettingsModal={showSettingsModal}
-					/>
-					<div
-						style={
-							showFileLeaf
-								? { width: folderLeafWidth + "px" }
-								: { width: "0px" }
-						}
-						className="z-0 relative h-full flex max-w-[80%] flex-col overflow-hidden transition-all"
-						id="FileBrowserLeaf"
-					>
-						<div className="rounded-tl-lg w-full justify-center flex bg-zinc-800 p-3">
-							<button
-								type="button"
-								onClick={createNewFile}
-								className="px-4 py-1 text-2xl  bg-zinc-800 text-zinc-500 font-semibold rounded-none border-none hover:text-white   focus:outline-none "
+				{mainFolder !== undefined ? (
+					mainFolder === "" ? (
+						<SplashScreen loadSettings={loadSettings}></SplashScreen>
+					) : (
+						<div className="z-0 flex flex-row h-full overflow-hidden">
+							<SideBar
+								showFileBrowserLeaf={showFileBrowserLeaf}
+								showFileLeaf={showFileLeaf}
+								showSettingsModal={showSettingsModal}
+							/>
+							<div
+								style={
+									showFileLeaf
+										? { width: folderLeafWidth + "px" }
+										: { width: "0px" }
+								}
+								className="z-0 relative h-full flex max-w-[80%] flex-col overflow-hidden transition-all"
+								id="FileBrowserLeaf"
 							>
-								<MdOutlineInsertDriveFile />
-							</button>
-							<button
-								type="button"
-								onClick={createNewFolder}
-								className="px-4 py-1 text-2xl bg-zinc-800 text-zinc-500 font-semibold rounded-none border-none hover:text-white   focus:outline-none "
-							>
-								<MdOutlineCreateNewFolder />
-							</button>
-						</div>
-						<div
-							id="folderTree"
-							className={
-								"bg-zinc-800 w-full h-full overflow-auto pb-10 text-sm text-ellipsis "
-							}
-						>
-							{renderFolders(allPaths)}
-						</div>
-					</div>
-					<div
-						id="resizeBar"
-						className={
-							showFileLeaf
-								? "w-1 bg-zinc-700 hover:bg-sky-400 cursor-col-resize ease-in-out duration-300 delay-50"
-								: " rounded-tl-2xl w-1 bg-zinc-700 hover:bg-sky-400 cursor-col-resize ease-in-out duration-300 delay-50"
-						}
-					></div>
-					<div
-						id="contentPane"
-						className="bg-zinc-700 w-full h-full overflow-auto flex-1 place-items-center "
-					>
-						{currentFile.path != "" ? (
-							<TestHarness>
-								<Editor
-									onChange={onChange}
-									currentFileContent={currentFileContent}
-									currentFilePath={currentFile.path}
-									className=" focus:outline-solid"
-									settings={settings}
-								/>
-								{/* <div ref={editor1} /> */}
-							</TestHarness>
-						) : (
-							<div className="flex  w-full h-full flex-col overflow-hidden">
-								<div className={searchString != "" ? "form-control self-center  pt-40  transition-all duration-[500ms] overflow-hidden ease-in-out" :"form-control self-center  pt-[40vh]   transition-all duration-[500ms] ease-in-out overflow-hidden" }></div>
-								<div className={"flex  self-center h-[80%] transition-all  relative" }>
-									{renderSearch()}
+								<div className="rounded-tl-lg w-full justify-center flex bg-zinc-800 p-3">
+									<button
+										type="button"
+										onClick={createNewFile}
+										className="px-4 py-1 text-2xl  bg-zinc-800 text-zinc-500 font-semibold rounded-none border-none hover:text-white   focus:outline-none "
+									>
+										<MdOutlineInsertDriveFile />
+									</button>
+									<button
+										type="button"
+										onClick={createNewFolder}
+										className="px-4 py-1 text-2xl bg-zinc-800 text-zinc-500 font-semibold rounded-none border-none hover:text-white   focus:outline-none "
+									>
+										<MdOutlineCreateNewFolder />
+									</button>
+								</div>
+								<div
+									id="folderTree"
+									className={
+										"bg-zinc-800 w-full h-full overflow-auto pb-10 text-sm text-ellipsis "
+									}
+								>
+									{renderFolders(allPaths)}
 								</div>
 							</div>
-						)}
-					</div>
-				</div>
+							<div
+								id="resizeBar"
+								className={
+									showFileLeaf
+										? "w-1 bg-zinc-700 hover:bg-sky-400 cursor-col-resize ease-in-out duration-300 delay-50"
+										: " rounded-tl-2xl w-1 bg-zinc-700 hover:bg-sky-400 cursor-col-resize ease-in-out duration-300 delay-50"
+								}
+							></div>
+							<div
+								id="contentPane"
+								className="bg-zinc-700 w-full h-full overflow-auto flex-1 place-items-center "
+							>
+								{currentFile.path != "" ? (
+									<TestHarness>
+										<Editor
+											onChange={onChange}
+											currentFileContent={currentFileContent}
+											currentFilePath={currentFile.path}
+											className=" focus:outline-solid"
+											settings={settings}
+										/>
+										{/* <div ref={editor1} /> */}
+									</TestHarness>
+								) : (
+									<div className="flex  w-full h-full flex-col overflow-hidden">
+										<div
+											className={
+												searchString != ""
+													? "form-control self-center  pt-40  transition-all duration-[500ms] overflow-hidden ease-in-out"
+													: "form-control self-center  pt-[40vh]   transition-all duration-[500ms] ease-in-out overflow-hidden"
+											}
+										></div>
+										<div
+											className={
+												"flex  self-center h-[80%] transition-all  relative"
+											}
+										>
+											{renderSearch()}
+										</div>
+									</div>
+								)}
+							</div>
+						</div>
+					)
+				) : (
+					<></>
+				)}
 				{settings.mainFolder.value !== "" ? (
 					<div
 						data-tauri-drag-region
