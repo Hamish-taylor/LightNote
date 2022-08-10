@@ -1,5 +1,6 @@
 import {
 	Fragment,
+	ReactNode,
 	useCallback,
 	useEffect,
 	useReducer,
@@ -34,13 +35,16 @@ import { documentDir } from "@tauri-apps/api/path";
 import Settings from "./Settings";
 import SplashScreen from "./SplashScreen";
 
+
+import SplitPane, { Pane } from "split-pane-react";
+import "split-pane-react/esm/themes/default.css";
+
 function TestHarness({ children }: { children?: React.ReactNode }) {
 	const [id, forceUpdate] = useReducer((x) => x + 1, 0);
 
 	document.addEventListener("file-read", () => {
 		forceUpdate();
 		// setChangeFile(false);
-		console.log("forceupdatee");
 	});
 
 	return (
@@ -55,17 +59,18 @@ function App() {
 	const [mainFolder, setMainFolder] = useState<string | undefined>(undefined);
 	const [allPaths, setAllPaths] = useState<FileEntry[]>([]);
 	const [showFileLeaf, setShowFileLeaf] = useState(false);
-	const [folderLeafWidth, setFolderLeafWidth] = useState(300);
+	const [showInfoLeaf, setShowInfoLeaf] = useState(false);
+	const [prevFileTreeWidth, setPrevFileTreeWidth] = useState<number>(300);
+	const [fileTreeWidth, setFileTreeWidth] = useState<number>(300);
 	const [currentFileContent, setCurrentFileContent] = useState("");
 	//const [currentFilePath, setCurrentFilePath] = useState("");
 	//const [currentFileName, setCurrentFileName] = useState("");
 	const [wordCount, setWordCount] = useState(0);
 	const [settingsModal, setSettingsModal] = useState(false);
 	const [currentFile, setCurrentFile] = useState({ name: "", path: "" });
-	// const [settings, setSettings] = useState({
-	// 	editorWidth: 700,
-	// 	mainFolder: "",
-	// });
+
+	const [sizes, setSizes] = useState([prevFileTreeWidth, "30%", "auto"]);
+
 	const [settings, setSettings] = useState({
 		editorWidth: {
 			name: "Editor Width",
@@ -106,6 +111,10 @@ function App() {
 
 	const [searchString, setSearchString] = useState("");
 
+	const [fileHeadingDisplay, setFileHeadingDisplay] = useState<
+		ReactNode | undefined
+	>();
+
 	// let changeFile = useRef(false);
 	//const [id, forceUpdate] = useReducer((x) => x + 1, 0);
 
@@ -136,58 +145,104 @@ function App() {
 			JSON.stringify(settings)
 		);
 	};
+	const countHeading = (text: string) => {
+		let count = 0;
+		let name = "";
+		for (let i = 0; i < text.length; i++) {
+			if (text[i] === "#") {
+				count++;
+			} else {
+				name += text[i];
+			}
+		}
+		name = name.trim();
+		return { count, name };
+	};
 
-	const processFile = async (path: string, name: string) => {
-		const text = await readTextFile(path);
+	const processFile = (text: string) => {
 		const lines = text.split("\n");
 
-		const countHeading = (text: string) => {
-			let count = 0;
-			let name = "";
-			for (let i = 0; i < text.length; i++) {
-				if (text[i] === "#") {
-					count++;
-				} else {
-					name += text[i];
-				}
-			}
-			name = name.trim();
-			return { count, name };
-		};
-
 		const process = (level: number, text: string[]) => {
-
 			let children = {};
 			let lines: string[] = [];
 			//console.log(level)
 			for (let i = 0; i < text.length; i++) {
 				const line = text[i];
-				if (line.startsWith("#")) {
+				if (line.trim().startsWith("#")) {
 					const { count, name } = countHeading(line);
-					if (count > level) console.log(count, name,level);
+					if (count > level) console.log(count, name, level);
 					if (count > level) {
-						const {remainder,data} = process(count,text.slice(i+1));
-						console.log(remainder,data);
-						text = remainder.slice(0);
-						i = 0;
+						console.log("Passing to children " + text.slice(i + 1));
+						const { remainder, data } = process(count, text.slice(i + 1));
+						console.log(remainder, data);
+						text = remainder;
+						i = -1;
 						children = {
 							...children,
-							[name] : data
+							[name]: data,
 						};
-					} else if (count <= level) {
-						//console.log(lines,children);
-						return {remainder : text.slice(i-1), data: { lines: lines, children: children }};
+					} else {
+						console.log(lines, children);
+						console.log("Remainder: " + text.slice(i));
+						return {
+							remainder: text.slice(i),
+							data: { lines: lines, children: children },
+						};
 					}
 				} else {
+					console.log("Pushing" + line);
 					lines.push(line);
 				}
 			}
-			return {remainder : [], data: { lines: lines, children: children }};
+			return { remainder: [], data: { lines: lines, children: children } };
 		};
 
-		console.log("processing file: " + name);
+		console.log("processing file: " + text);
 		const wow = process(0, lines);
-		console.log("{\"" + name + "\" : " + JSON.stringify(wow.data) + "}");
+		console.log('{"' + name + '" : ' + JSON.stringify(wow.data) + "}");
+		return wow.data;
+	};
+
+	const generateHeadingDisplay = (curFile: string) => {
+		const file = processFile(curFile);
+		console.log(file);
+
+		const heading = (
+			child: { lines: string[]; children: { [key: string]: any } },
+			level: string
+		) => {
+			let ret: ReactNode[] = [];
+			let count = 1;
+
+			Object.entries(child.children).forEach(([key]) => {
+				console.log(key);
+
+				if (level != "") {
+					ret.push(
+						<div className="flex flex-row">
+							<div className="font-bold">{level + "." + count + " "}</div>{" "}
+							<div className="ml-1"> {key} </div>
+						</div>
+					);
+
+					ret.push(heading(child.children[key], level + "." + count));
+				} else {
+					ret.push(
+						<div className="flex flex-row">
+							<div className="font-bold">{count + " "}</div>{" "}
+							<div className="ml-1"> {key} </div>
+						</div>
+					);
+
+					ret.push(heading(child.children[key], count.toString()));
+					ret.push(<div className="divider m-0" />);
+				}
+
+				count += 1;
+			});
+			return <div className="ml-5">{ret}</div>;
+		};
+		setFileHeadingDisplay(<div className="">{heading(file, "")}</div>);
 	};
 
 	const loadSettings = async () => {
@@ -326,8 +381,66 @@ function App() {
 		return "folder";
 	};
 	const showFileBrowserLeaf = () => {
-		setShowFileLeaf(!showFileLeaf);
+		let elements = document.getElementsByClassName("react-split__pane");
+
+		for (let i = 0; i < elements.length; i++) {
+			let elem = elements[i] as HTMLElement;
+			elem.classList.add("transition-all");
+			elem.addEventListener("transitionend", (e) => {
+				elem.classList.remove("transition-all");
+			});
+			elem.onanimationend = () => {
+				elem.classList.remove("transition-all");
+			};
+		}
+
+		if (sizes[0] > 0) {
+			let s : number = sizes[0] < 200 ? 200  : sizes[0] as number;
+			setPrevFileTreeWidth(s);
+			setSizes([0, sizes[1], sizes[2]]);
+			setShowFileLeaf(false);
+		} else {
+			setSizes([prevFileTreeWidth, sizes[1], sizes[2]]);
+			setShowFileLeaf(true);
+		}
 	};
+
+	const showFileInfoLeaf = () => {
+		let elements = document.getElementsByClassName("react-split__pane");
+
+		for (let i = 0; i < elements.length; i++) {
+			let elem = elements[i] as HTMLElement;
+			elem.classList.add("transition-all");
+			elem.addEventListener("transitionend", (e) => {
+				elem.classList.remove("transition-all");
+			});
+			elem.onanimationend = () => {
+				elem.classList.remove("transition-all");
+			};
+		}
+
+		if (sizes[2] > 0) {
+			//setPrevFileTreeWidth(sizes[0] < 200 ? 200 : sizes[0]);
+			setSizes([sizes[0], sizes[1], 0]);
+			setShowInfoLeaf(false);
+		} else {
+			setSizes([sizes[0], sizes[1], 200]);
+			setShowInfoLeaf(true);
+		}
+	};
+
+	useEffect(() => {
+		if (sizes[0] > 0) {
+			setShowFileLeaf(true);
+		} else {
+			setShowFileLeaf(false);
+		}
+		if (sizes[2] > 0) {
+			setShowInfoLeaf(true);
+		} else {
+			setShowInfoLeaf(false);
+		}
+	}, [sizes]);
 
 	const showSettingsModal = () => {
 		setSettingsModal(!settingsModal);
@@ -353,7 +466,7 @@ function App() {
 		const file = await readTextFile(path);
 		setCurrentFileContent(file);
 		setChangeFile(true);
-
+		generateHeadingDisplay(file);
 		document.dispatchEvent(customEvent);
 	};
 
@@ -372,7 +485,6 @@ function App() {
 				console.log("reading file");
 				readFile(currentFile.path);
 			}
-			processFile(currentFile.path, currentFile.name);
 		}
 	}, [currentFile]);
 
@@ -404,102 +516,6 @@ function App() {
 		);
 	};
 
-	// const files = useMemo(() => renderFolders(allPaths), [allPaths]);
-	useEffect(() => {
-		// Query the element
-		const resizer = document.getElementById("resizeBar")!;
-		const leftSide = document.getElementById("FileBrowserLeaf")!;
-		const rightSide = document.getElementById("contentPane")!;
-		if (resizer && leftSide && rightSide) {
-			// The current position of mouse
-			let x = 0;
-			let y = 0;
-
-			// Width of left side
-			let leftWidth = 0;
-
-			// Handle the mousedown event
-			// that's triggered when user drags the resizer
-			const mouseDownHandler = function (e: {
-				clientX: number;
-				clientY: number;
-			}) {
-				leftSide.classList.remove("transition-all");
-				// Get the current mouse position
-				x = e.clientX;
-				y = e.clientY;
-				leftWidth = parseInt(getComputedStyle(leftSide, "").width); //leftSide.getBoundingClientRect().width;
-
-				// Attach the listeners to `document`
-				document.addEventListener("mousemove", mouseMoveHandler);
-				document.addEventListener("mouseup", mouseUpHandler);
-			};
-
-			// Attach the handler
-			resizer.addEventListener("mousedown", mouseDownHandler);
-
-			const mouseMoveHandler = function (e: {
-				clientX: number;
-				clientY: number;
-			}) {
-				// How far the mouse has been moved
-				const dx = e.clientX - x;
-
-				let newLeftWidth =
-					((leftWidth + dx) * 100) /
-					resizer.parentElement!.getBoundingClientRect().width;
-				if (newLeftWidth < 4) {
-					newLeftWidth = 0;
-				}
-
-				if (newLeftWidth > 4) {
-					setShowFileLeaf(true);
-				} else {
-					setShowFileLeaf(false);
-				}
-
-				leftSide.style.width = `${newLeftWidth}%`;
-
-				document.body.style.cursor = "col-resize";
-				document.body.style.cursor = "col-resize";
-
-				leftSide.style.userSelect = "none";
-				leftSide.style.pointerEvents = "none";
-
-				rightSide.style.userSelect = "none";
-				rightSide.style.pointerEvents = "none";
-			};
-
-			const mouseUpHandler = function () {
-				leftSide.classList.add("transition-all");
-				resizer.style.removeProperty("cursor");
-				document.body.style.removeProperty("cursor");
-
-				leftSide.style.removeProperty("user-select");
-				leftSide.style.removeProperty("pointer-events");
-
-				rightSide.style.removeProperty("user-select");
-				rightSide.style.removeProperty("pointer-events");
-
-				// Remove the handlers of `mousemove` and `mouseup`
-				document.removeEventListener("mousemove", mouseMoveHandler);
-				document.removeEventListener("mouseup", mouseUpHandler);
-
-				leftWidth = parseInt(getComputedStyle(leftSide, "").width);
-				if (leftWidth < 4) {
-					setShowFileLeaf(false);
-					setFolderLeafWidth(300);
-				} else {
-					setFolderLeafWidth(leftWidth);
-					setShowFileLeaf(true);
-				}
-				if (leftWidth > 4 && showFileLeaf == false) {
-					setShowFileLeaf(true);
-				}
-			};
-		}
-	}, [allPaths]);
-
 	const deleteFile = async (path: string) => {
 		const p = path.replace(":name", "");
 		if (currentFile.path == p) {
@@ -519,9 +535,14 @@ function App() {
 			//save the file
 			countWords(value);
 			await writeTextFile(currentFile.path, value);
+			generateHeadingDisplay(value);
 		},
 		[currentFile.path]
 	);
+
+	useEffect(() => {
+		document.getElementById("");
+	}, []);
 
 	const renderSearch = () => {
 		let files = allPaths.filter((file: any) => {
@@ -534,6 +555,7 @@ function App() {
 		files = files.sort((a: any, b: any) => {
 			return a.name!.toLowerCase().localeCompare(b.name!.toLowerCase());
 		});
+
 		return (
 			<div className="flex flex-col ">
 				<div className="text-center text-xl">Search for a note</div>
@@ -694,88 +716,110 @@ function App() {
 					mainFolder === "" ? (
 						<SplashScreen loadSettings={loadSettings}></SplashScreen>
 					) : (
-						<div className="z-0 flex flex-row h-full overflow-hidden">
+						<div className="w-full h-full flex relative">
 							<SideBar
 								showFileBrowserLeaf={showFileBrowserLeaf}
 								showFileLeaf={showFileLeaf}
 								showSettingsModal={showSettingsModal}
 							/>
-							<div
-								style={
-									showFileLeaf
-										? { width: folderLeafWidth + "px" }
-										: { width: "0px" }
-								}
-								className="z-0 relative h-full flex max-w-[80%] flex-col overflow-hidden transition-all"
-								id="FileBrowserLeaf"
-							>
-								<div className="rounded-tl-lg w-full justify-center flex bg-zinc-800 p-3">
-									<button
-										type="button"
-										onClick={createNewFile}
-										className="px-4 py-1 text-2xl  bg-zinc-800 text-zinc-500 font-semibold rounded-none border-none hover:text-white   focus:outline-none "
+							<SplitPane split="vertical" sizes={sizes} onChange={setSizes}>
+								<Pane minSize={0} maxSize="50%" className="">
+									{/* <ResizableBox className="flex flex-row justify-end h-full"  handle={<div  className=" h-full w-1 hover:cursor-col-resize hover:bg-blue-500 self-end " />} width={200} height={1000} draggableOpts={{}} minConstraints={[100, 100]} maxConstraints={[8000, 800]}> */}
+									<div
+										className="z-0 relative h-full flex flex-col overflow-hidden"
+										id="FileBrowserLeaf"
 									>
-										<MdOutlineInsertDriveFile />
-									</button>
-									<button
-										type="button"
-										onClick={createNewFolder}
-										className="px-4 py-1 text-2xl bg-zinc-800 text-zinc-500 font-semibold rounded-none border-none hover:text-white   focus:outline-none "
-									>
-										<MdOutlineCreateNewFolder />
-									</button>
-								</div>
-								<div
-									id="folderTree"
-									className={
-										"bg-zinc-800 w-full h-full overflow-auto pb-10 text-sm text-ellipsis "
-									}
-								>
-									{renderFolders(allPaths)}
-								</div>
-							</div>
-							<div
-								id="resizeBar"
-								className={
-									showFileLeaf
-										? "w-1 bg-zinc-700 hover:bg-sky-400 cursor-col-resize ease-in-out duration-300 delay-50"
-										: " rounded-tl-2xl w-1 bg-zinc-700 hover:bg-sky-400 cursor-col-resize ease-in-out duration-300 delay-50"
-								}
-							></div>
-							<div
-								id="contentPane"
-								className="bg-zinc-700 w-full h-full overflow-auto flex-1 place-items-center "
-							>
-								{currentFile.path != "" ? (
-									<TestHarness>
-										<Editor
-											onChange={onChange}
-											currentFileContent={currentFileContent}
-											currentFilePath={currentFile.path}
-											className=" focus:outline-solid"
-											settings={settings}
-										/>
-										{/* <div ref={editor1} /> */}
-									</TestHarness>
-								) : (
-									<div className="flex  w-full h-full flex-col overflow-hidden">
+										<div className="rounded-tl-lg w-full justify-center flex bg-zinc-800 p-3">
+											<button
+												type="button"
+												onClick={createNewFile}
+												className="px-4 py-1 text-2xl  bg-zinc-800 text-zinc-500 font-semibold rounded-none border-none hover:text-white   focus:outline-none "
+											>
+												<MdOutlineInsertDriveFile />
+											</button>
+											<button
+												type="button"
+												onClick={createNewFolder}
+												className="px-4 py-1 text-2xl bg-zinc-800 text-zinc-500 font-semibold rounded-none border-none hover:text-white   focus:outline-none "
+											>
+												<MdOutlineCreateNewFolder />
+											</button>
+										</div>
 										<div
+											id="folderTree"
 											className={
-												searchString != ""
-													? "form-control self-center  pt-40  transition-all duration-[500ms] overflow-hidden ease-in-out"
-													: "form-control self-center  pt-[40vh]   transition-all duration-[500ms] ease-in-out overflow-hidden"
-											}
-										></div>
-										<div
-											className={
-												"flex  self-center h-[80%] transition-all  relative"
+												"bg-zinc-800 w-full h-full overflow-auto pb-10 text-sm text-ellipsis "
 											}
 										>
-											{renderSearch()}
+											{renderFolders(allPaths)}
 										</div>
 									</div>
-								)}
-							</div>
+									{/* </ResizableBox> */}
+								</Pane>
+								<Pane minSize={50} maxSize="100%" className="">
+									<div
+										id="contentPane"
+										className="bg-zinc-700 w-full h-full flex-1 flex-grow overflow-auto place-items-center "
+									>
+										{currentFile.path != "" ? (
+											<TestHarness>
+												<Editor
+													onChange={onChange}
+													currentFileContent={currentFileContent}
+													currentFilePath={currentFile.path}
+													className=" focus:outline-solid"
+													settings={settings}
+												/>
+												{/* <div ref={editor1} /> */}
+											</TestHarness>
+										) : (
+											<div className="flex w-full  h-full flex-col overflow-hidden">
+												<div
+													className={
+														searchString != ""
+															? "form-control self-center  pt-40  transition-all duration-[500ms] overflow-hidden ease-in-out"
+															: "form-control self-center  pt-[40vh]   transition-all duration-[500ms] ease-in-out overflow-hidden"
+													}
+												></div>
+												<div
+													className={
+														"flex  self-center h-[80%] transition-all  relative"
+													}
+												>
+													{renderSearch()}
+												</div>
+											</div>
+										)}
+									</div>
+								</Pane>
+								<Pane minSize={0} maxSize="50%">
+									<div
+										id="rightInfoLeaf"
+										className="z-0 relative h-full w-full bg-zinc-800 flex-col overflow-hidden transition-all"
+									>
+										<div className="collapse collapse-arrow">
+											<input type="checkbox" className="peer" />
+											<div className="collapse-title  text-primary-content ">
+												Headings
+											</div>
+											<div className="collapse-content  ">
+												<div className="overflow-auto">
+													{fileHeadingDisplay ? (
+														fileHeadingDisplay
+													) : (
+														<div>Open a file to view its Headings</div>
+													)}
+												</div>
+											</div>
+										</div>
+									</div>
+								</Pane>
+							</SplitPane>
+							<SideBar
+								showFileBrowserLeaf={showFileInfoLeaf}
+								showFileLeaf={showInfoLeaf}
+								showSettingsModal={showSettingsModal}
+							/>
 						</div>
 					)
 				) : (
