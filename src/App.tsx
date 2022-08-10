@@ -69,7 +69,7 @@ function App() {
 	const [settingsModal, setSettingsModal] = useState(false);
 	const [currentFile, setCurrentFile] = useState({ name: "", path: "" });
 
-	const [sizes, setSizes] = useState([prevFileTreeWidth, "30%", "auto"]);
+	const [sizes, setSizes] = useState([0, "fit", 0]);
 
 	const [settings, setSettings] = useState({
 		editorWidth: {
@@ -382,7 +382,7 @@ function App() {
 	};
 	const showFileBrowserLeaf = () => {
 		let elements = document.getElementsByClassName("react-split__pane");
-
+		
 		for (let i = 0; i < elements.length; i++) {
 			let elem = elements[i] as HTMLElement;
 			elem.classList.add("transition-all");
