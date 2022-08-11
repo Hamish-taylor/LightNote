@@ -23,6 +23,7 @@ import {
 	readTextFile,
 	writeTextFile,
 	createDir,
+	renameFile
 } from "@tauri-apps/api/fs";
 
 import { fs, invoke } from "@tauri-apps/api";
@@ -93,7 +94,7 @@ function App() {
 		},
 	});
 
-	const [renaming, setRenaming] = useState("");
+	const renaming = useRef("");
 
 	//Setting the window to frameless
 	appWindow.setDecorations(false);
@@ -108,7 +109,7 @@ function App() {
 	const [contextID, setContextID] = useState("");
 
 	const [changeFile, setChangeFile] = useState(false);
-
+	// const [DOMreloaded, setDOMreloaded] = useState(false);
 	const [searchString, setSearchString] = useState("");
 
 	const [fileHeadingDisplay, setFileHeadingDisplay] = useState<
@@ -122,19 +123,21 @@ function App() {
 		loadSettings();
 	}, []);
 
+
+
 	useEffect(() => {
 		if (settings.mainFolder.value !== "") {
-			console.log("reading files");
+			//console.log("reading files");
 			//save settings
 			saveSettings();
 			readFiles();
 			// loaded.current = true;
 
-			console.log("main folder: " + settings.mainFolder.value);
+			//console.log("main folder: " + settings.mainFolder.value);
 		} else {
-			console.log("no main folder");
+			//console.log("no main folder");
 			//loadSettings();
-			console.log("main folder: " + mainFolder);
+			//console.log("main folder: " + mainFolder);
 		}
 	}, [settings]);
 
@@ -272,25 +275,26 @@ function App() {
 
 		while (loop) {
 			try {
-				await readTextFile(settings.mainFolder.value + "/" + newFileName);
+				await readTextFile(settings.mainFolder.value + "\\" + newFileName);
 				num += 1;
 				newFileName = "Untitled " + num + ".md";
 			} catch (error) {
-				await writeTextFile(settings.mainFolder.value + "/" + newFileName, "");
+				await writeTextFile(settings.mainFolder.value + "\\" + newFileName, "");
 				loop = false;
 			}
 		}
 
 		await readFiles();
 		setCurrentFile({ name: newFileName, path: settings.mainFolder.value });
-		openNewFile(settings.mainFolder.value + "/" + newFileName, newFileName);
+		openNewFile(settings.mainFolder.value + "\\" + newFileName, newFileName);
+		renaming.current = (settings.mainFolder.value + "\\" + newFileName);
 	};
 
 	const createNewFolder = async () => {
 		let num = 0;
 		let loop = true;
 
-		let newFolderName = settings.mainFolder.value + "/" + "Untitled";
+		let newFolderName = settings.mainFolder.value + "\\" + "Untitled";
 
 		while (loop) {
 			try {
@@ -298,13 +302,13 @@ function App() {
 				loop = false;
 			} catch (error) {
 				num += 1;
-				newFolderName = settings.mainFolder.value + "/" + "Untitled " + num;
+				newFolderName = settings.mainFolder.value + "\\" + "Untitled " + num;
 			}
 		}
 
 		await readFiles();
 		setContextID(newFolderName);
-		setRenaming(newFolderName);
+		renaming.current = (newFolderName);
 	};
 
 	const handleContextMenu = useCallback(
@@ -351,25 +355,68 @@ function App() {
 			document.removeEventListener("contextmenu", handleContextMenu);
 		};
 	});
+	
+
 
 	useEffect(() => {
-		var el = document.getElementById(renaming)!;
-		if (el) {
+		var parent = document.getElementById(renaming.current)!;
+		
+		if (parent) {
+			var child = parent.children[0] as HTMLElement;
+			var list = parent.parentElement!.parentElement!.parentElement!
+			console.log(list);
+	
+			list.scrollTop = (parent.offsetTop - window.innerHeight/2);
+
 			var range = document.createRange();
-			range.selectNodeContents(el);
+			range.selectNodeContents(child);
 			var sel = window.getSelection()!;
 			sel.removeAllRanges();
 			sel.addRange(range);
 
-			document.addEventListener("keydown", (e) => {
-				if (e.key == "Enter") {
-					setRenaming("");
-				}
-			});
+			const renameFile = async () => {
+					const newName = child.innerText;
+					//console.log("New Name: " + newName);
+					//console.log("Old Name: " + renaming.current);
 
-			el.addEventListener("blur", (e) => setRenaming(""));
+					
+
+					if (newName != renaming.current) {
+						const path = renaming.current.substring(0, renaming.current.lastIndexOf("\\"));
+						//console.log("Path: " + path);
+
+						if(!/^[ A-Za-z0-9.-]*$/.test(newName) && !parent.parentElement!.classList.contains("tooltip")) {
+							//parent.parentElement!.classList.add("tooltip");
+							//console.log("Invalid character");
+							renaming.current = ("");
+							await readFiles();
+							return
+						} else if(parent.parentElement!.classList.contains("tooltip")) {
+							//parent.parentElement!.classList.remove("tooltip");
+						}
+						await fs.renameFile(renaming.current, path+ "/" + newName);
+						if(currentFile.path == renaming.current) {
+							openNewFile(path + "/" + newName, newName);
+						}
+						await readFiles();
+					}
+
+
+					renaming.current = ("");
+			}
+
+			child.addEventListener("keydown", (e) => {
+				if (e.key == "Enter") {
+					renameFile()			
+				}
+		
+			},{once: true});
+
+			child.addEventListener("blur", (e) => {
+				renameFile()			
+			},{once: true});
 		}
-	}, [renaming]);
+	}, [renaming.current]);
 
 	const isFileOrFolder = (path: string) => {
 		const re = new RegExp("[.][a-z]*");
@@ -462,7 +509,7 @@ function App() {
 	};
 	const customEvent = new CustomEvent("file-read");
 	const readFile = async (path: string) => {
-		console.log(path);
+		//console.log(path);
 		const file = await readTextFile(path);
 		setCurrentFileContent(file);
 		setChangeFile(true);
@@ -482,7 +529,7 @@ function App() {
 		if (currentFile.path != "" && currentFile.path.includes(".md")) {
 			const elem = document.getElementById(currentFile.path)!;
 			if (elem) {
-				console.log("reading file");
+				//console.log("reading file");
 				readFile(currentFile.path);
 			}
 		}
@@ -506,9 +553,9 @@ function App() {
 					return (
 						<FileTreeItem
 							entry={entry}
-							selected={currentFile.path}
+							selected={currentFile.path == entry.path}
 							changeSelected={setCurrentFile}
-							renaming={renaming == entry.path}
+							renaming={renaming.current == entry.path}
 						/>
 					);
 				})}
@@ -625,7 +672,7 @@ function App() {
 						<button
 							className="flex text-center align-middle text-sm rounded-none border-none bg-transparent hover:bg-zinc-700 mt-1"
 							onClick={() => {
-								setRenaming(contextID); //, rename();
+								renaming.current = (contextID); //, rename();
 							}}
 						>
 							<VscEdit className="text-s self-center mr-1" />
@@ -656,7 +703,7 @@ function App() {
 						<button
 							className="flex text-center align-middle text-sm  rounded-none border-none bg-transparent hover:bg-zinc-700 mt-1"
 							onClick={() => {
-								setRenaming(contextID); //, rename();
+								renaming.current = (contextID); //, rename();
 							}}
 						>
 							<VscEdit className="text-s self-center mr-1" />

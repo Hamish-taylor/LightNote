@@ -35,6 +35,7 @@ function FileTreeItem(props: any) {
 					</button>
 				</div>
 			) : (
+				<div className="tooltip-open" data-tip="Invalid character">
 				<button
 					id={props.entry.path}
 					type="button"
@@ -48,21 +49,22 @@ function FileTreeItem(props: any) {
 							setShowChildren(!showChildren);
 						}
 					}}
-					contentEditable={props.renaming}
-					onBlur={(e) => {}}
+					
 					className={
-						props.selected === props.entry.path
-							? "active bg-transparent flex flex-1 text-left w-full outline-none border-none rounded-none focus:rounded-none focused hover:bg-zinc-600 focus:outline-none "
+						props.selected
+							? " bg-black flex flex-1 text-left w-full outline-none border-none rounded-none focus:rounded-none focused hover:bg-zinc-600 focus:outline-none "
 							: " bg-transparent flex flex-1 text-left w-full outline-none border-none rounded-none focus:rounded-none focused hover:bg-zinc-600 focus:outline-none "
 					}
 				>
-					<div id={props.entry.path} className={" "}>
+					
+					<div id={props.entry.path} className={ props.renaming ? "bg-black border border-blue-500" : ""} contentEditable={props.renaming} >
 						{props.entry.name}
 					</div>
 					{isFileOrFolder(props.entry.path) == "folder" ? (
 						<IoMdArrowDropdown className="place-self-center" />
 					) : null}
 				</button>
+				</div>
 			)}
 			<div
 				style={showChildren ? { maxHeight: "5000px" } : { maxHeight: "0" }}
