@@ -23,7 +23,7 @@ import {
 	readTextFile,
 	writeTextFile,
 	createDir,
-	renameFile
+	renameFile,
 } from "@tauri-apps/api/fs";
 
 import { fs, invoke } from "@tauri-apps/api";
@@ -36,9 +36,10 @@ import { documentDir } from "@tauri-apps/api/path";
 import Settings from "./Settings";
 import SplashScreen from "./SplashScreen";
 
-
 import SplitPane, { Pane } from "split-pane-react";
 import "split-pane-react/esm/themes/default.css";
+import { EditorState, Text, TransactionSpec } from "@codemirror/state";
+import { EditorView, ViewUpdate } from "@codemirror/view";
 
 function TestHarness({ children }: { children?: React.ReactNode }) {
 	const [id, forceUpdate] = useReducer((x) => x + 1, 0);
@@ -122,8 +123,6 @@ function App() {
 	useEffect(() => {
 		loadSettings();
 	}, []);
-
-
 
 	useEffect(() => {
 		if (settings.mainFolder.value !== "") {
@@ -287,7 +286,7 @@ function App() {
 		await readFiles();
 		setCurrentFile({ name: newFileName, path: settings.mainFolder.value });
 		openNewFile(settings.mainFolder.value + "\\" + newFileName, newFileName);
-		renaming.current = (settings.mainFolder.value + "\\" + newFileName);
+		renaming.current = settings.mainFolder.value + "\\" + newFileName;
 	};
 
 	const createNewFolder = async () => {
@@ -308,7 +307,7 @@ function App() {
 
 		await readFiles();
 		setContextID(newFolderName);
-		renaming.current = (newFolderName);
+		renaming.current = newFolderName;
 	};
 
 	const handleContextMenu = useCallback(
@@ -355,18 +354,16 @@ function App() {
 			document.removeEventListener("contextmenu", handleContextMenu);
 		};
 	});
-	
-
 
 	useEffect(() => {
 		var parent = document.getElementById(renaming.current)!;
-		
+
 		if (parent) {
 			var child = parent.children[0] as HTMLElement;
-			var list = parent.parentElement!.parentElement!.parentElement!
+			var list = parent.parentElement!.parentElement!.parentElement!;
 			console.log(list);
-	
-			list.scrollTop = (parent.offsetTop - window.innerHeight/2);
+
+			list.scrollTop = parent.offsetTop - window.innerHeight / 2;
 
 			var range = document.createRange();
 			range.selectNodeContents(child);
@@ -375,46 +372,56 @@ function App() {
 			sel.addRange(range);
 
 			const renameFile = async () => {
-					const newName = child.innerText;
-					//console.log("New Name: " + newName);
-					//console.log("Old Name: " + renaming.current);
+				const newName = child.innerText;
+				//console.log("New Name: " + newName);
+				//console.log("Old Name: " + renaming.current);
 
-					
+				if (newName != renaming.current) {
+					const path = renaming.current.substring(
+						0,
+						renaming.current.lastIndexOf("\\")
+					);
+					//console.log("Path: " + path);
 
-					if (newName != renaming.current) {
-						const path = renaming.current.substring(0, renaming.current.lastIndexOf("\\"));
-						//console.log("Path: " + path);
-
-						if(!/^[ A-Za-z0-9.-]*$/.test(newName) && !parent.parentElement!.classList.contains("tooltip")) {
-							//parent.parentElement!.classList.add("tooltip");
-							//console.log("Invalid character");
-							renaming.current = ("");
-							await readFiles();
-							return
-						} else if(parent.parentElement!.classList.contains("tooltip")) {
-							//parent.parentElement!.classList.remove("tooltip");
-						}
-						await fs.renameFile(renaming.current, path+ "/" + newName);
-						if(currentFile.path == renaming.current) {
-							openNewFile(path + "/" + newName, newName);
-						}
+					if (
+						!/^[ A-Za-z0-9.-]*$/.test(newName) &&
+						!parent.parentElement!.classList.contains("tooltip")
+					) {
+						//parent.parentElement!.classList.add("tooltip");
+						//console.log("Invalid character");
+						renaming.current = "";
 						await readFiles();
+						return;
+					} else if (parent.parentElement!.classList.contains("tooltip")) {
+						//parent.parentElement!.classList.remove("tooltip");
 					}
-
-
-					renaming.current = ("");
-			}
-
-			child.addEventListener("keydown", (e) => {
-				if (e.key == "Enter") {
-					renameFile()			
+					await fs.renameFile(renaming.current, path + "/" + newName);
+					if (currentFile.path == renaming.current) {
+						openNewFile(path + "/" + newName, newName);
+					}
+					await readFiles();
 				}
-		
-			},{once: true});
 
-			child.addEventListener("blur", (e) => {
-				renameFile()			
-			},{once: true});
+				renaming.current = "";
+			};
+
+			child.addEventListener(
+				"keydown",
+				(e) => {
+					if (e.key == "Enter") {
+						renameFile();
+					}
+				},
+				{ once: true }
+			);
+
+			child.addEventListener(
+				"blur",
+				(e) => {
+					renameFile();
+				},
+				{ once: true }
+			);
 		}
 	}, [renaming.current]);
 
@@ -429,7 +436,7 @@ function App() {
 	};
 	const showFileBrowserLeaf = () => {
 		let elements = document.getElementsByClassName("react-split__pane");
-		
+
 		for (let i = 0; i < elements.length; i++) {
 			let elem = elements[i] as HTMLElement;
 			elem.classList.add("transition-all");
@@ -442,7 +449,7 @@ function App() {
 		}
 
 		if (sizes[0] > 0) {
-			let s : number = sizes[0] < 200 ? 200  : sizes[0] as number;
+			let s: number = sizes[0] < 200 ? 200 : (sizes[0] as number);
 			setPrevFileTreeWidth(s);
 			setSizes([0, sizes[1], sizes[2]]);
 			setShowFileLeaf(false);
@@ -578,11 +585,21 @@ function App() {
 	};
 
 	const onChange = useCallback(
-		async (value: any, viewUpdate: any) => {
+		async (value: any) => {
 			//save the file
+
 			countWords(value);
 			await writeTextFile(currentFile.path, value);
 			generateHeadingDisplay(value);
+
+
+		},
+		[currentFile.path]
+	);
+
+	const onCreateEditor = useCallback(
+		async (view: EditorView, state: EditorState) => {
+			
 		},
 		[currentFile.path]
 	);
@@ -590,6 +607,8 @@ function App() {
 	useEffect(() => {
 		document.getElementById("");
 	}, []);
+	const[selection,setSelection] = useState(0);
+
 
 	const renderSearch = () => {
 		let files = allPaths.filter((file: any) => {
@@ -602,6 +621,20 @@ function App() {
 		files = files.sort((a: any, b: any) => {
 			return a.name!.toLowerCase().localeCompare(b.name!.toLowerCase());
 		});
+		
+		document.addEventListener('keydown', (e) => {
+			console.log(e.key);
+			console.log(selection)
+			if(e.key == "ArrowDown"){
+				selection < files.length - 1 ? setSelection(selection+1) : setSelection(0);
+			}else if(e.key == "ArrowUp"){
+				selection > 0 ? setSelection(selection-1) : setSelection(files.length - 1);
+			}else if(e.key == "Enter"){
+				let entry = files[selection];
+				setCurrentFile({ name: entry.name!, path: entry.path })
+			}
+		}, {once : true})
+
 
 		return (
 			<div className="flex flex-col ">
@@ -636,7 +669,8 @@ function App() {
 							{files.length} results
 						</div>
 						<div className="flex flex-col  h-full overflow-auto transform-all duration-700">
-							{files.map((entry: any) => {
+							{
+							files.map((entry: any,index) => {
 								return (
 									<div className="text-start">
 										<div className="divider m-0" />
@@ -644,7 +678,8 @@ function App() {
 											onClick={() =>
 												setCurrentFile({ name: entry.name, path: entry.path })
 											}
-											className=" bg-transparent h-fit hover:text-zinc-200 hover:bg-zinc-800 border-none focus:border-none focus:outline-none  rounded-none w-full text-start"
+											
+											className={index == selection ? " h-fit hover:text-zinc-200 bg-zinc-800 border-none focus:border-none focus:outline-none  rounded-none w-full text-start" : "bg-transparent h-fit hover:text-zinc-200 hover:bg-zinc-900 border-none focus:border-none focus:outline-none  rounded-none w-full text-start"}
 										>
 											{entry.name}
 										</button>
@@ -672,7 +707,7 @@ function App() {
 						<button
 							className="flex text-center align-middle text-sm rounded-none border-none bg-transparent hover:bg-zinc-700 mt-1"
 							onClick={() => {
-								renaming.current = (contextID); //, rename();
+								renaming.current = contextID; //, rename();
 							}}
 						>
 							<VscEdit className="text-s self-center mr-1" />
@@ -703,7 +738,7 @@ function App() {
 						<button
 							className="flex text-center align-middle text-sm  rounded-none border-none bg-transparent hover:bg-zinc-700 mt-1"
 							onClick={() => {
-								renaming.current = (contextID); //, rename();
+								renaming.current = contextID; //, rename();
 							}}
 						>
 							<VscEdit className="text-s self-center mr-1" />
@@ -802,23 +837,28 @@ function App() {
 										</div>
 									</div>
 									{/* </ResizableBox> */}
-								</Pane>
-								<Pane minSize={50} maxSize="100%" className="">
+								</Pane>									
 									<div
 										id="contentPane"
 										className="bg-zinc-700 w-full h-full flex-1 flex-grow overflow-auto place-items-center "
 									>
+										
 										{currentFile.path != "" ? (
-											<TestHarness>
-												<Editor
-													onChange={onChange}
-													currentFileContent={currentFileContent}
-													currentFilePath={currentFile.path}
-													className=" focus:outline-solid"
-													settings={settings}
-												/>
-												{/* <div ref={editor1} /> */}
-											</TestHarness>
+											
+												<TestHarness>
+													
+													<Editor
+														onCreateEditor={onCreateEditor}
+														onChange={onChange}
+														currentFileContent={currentFileContent}
+														currentFilePath={currentFile.path}
+														className=" focus:outline-solid text-white"
+														settings={settings}
+													/>
+													{/* <div ref={editor1} /> */}
+										
+												</TestHarness>
+											
 										) : (
 											<div className="flex w-full  h-full flex-col overflow-hidden">
 												<div
@@ -837,8 +877,9 @@ function App() {
 												</div>
 											</div>
 										)}
+										<div></div>
 									</div>
-								</Pane>
+									
 								<Pane minSize={0} maxSize="50%">
 									<div
 										id="rightInfoLeaf"
