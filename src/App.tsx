@@ -40,6 +40,7 @@ import SplitPane, { Pane } from "split-pane-react";
 import "split-pane-react/esm/themes/default.css";
 import { EditorState, Text, TransactionSpec } from "@codemirror/state";
 import { EditorView, ViewUpdate } from "@codemirror/view";
+import ContextMenus from "./ContextMenus";
 
 function TestHarness({ children }: { children?: React.ReactNode }) {
 	const [id, forceUpdate] = useReducer((x) => x + 1, 0);
@@ -55,6 +56,17 @@ function TestHarness({ children }: { children?: React.ReactNode }) {
 		</>
 	);
 }
+
+export const isFileOrFolder = (path: string) => {
+	const re = new RegExp("[.][a-z]*");
+	console.log(path)
+	if ((path.toLowerCase()).endsWith(".md")) {
+		return "file";
+	} else if (re.test(path)) {
+		return "none";
+	}
+	return "folder";
+};
 
 //TODO:
 function App() {
@@ -72,6 +84,9 @@ function App() {
 	const [currentFile, setCurrentFile] = useState({ name: "", path: "" });
 
 	const [sizes, setSizes] = useState([0, "fit", 0]);
+
+	const [contextMenuSelectedNode, setContextMenuSelectedNode] = useState<HTMLElement | undefined>(undefined)
+
 
 	const [settings, setSettings] = useState({
 		editorWidth: {
@@ -105,9 +120,6 @@ function App() {
 	const close = () => appWindow.close();
 
 	const [anchorPoint, setAnchorPoint] = useState({ x: 0, y: 0 });
-	const [showEditorContext, setShowEditorContext] = useState(false);
-	const [showFileContext, setShowFileContext] = useState(false);
-	const [contextID, setContextID] = useState("");
 
 	const [changeFile, setChangeFile] = useState(false);
 	// const [DOMreloaded, setDOMreloaded] = useState(false);
@@ -306,7 +318,6 @@ function App() {
 		}
 
 		await readFiles();
-		setContextID(newFolderName);
 		renaming.current = newFolderName;
 	};
 
@@ -315,33 +326,45 @@ function App() {
 			preventDefault: () => void;
 			pageX: any;
 			pageY: any;
-			target: { id: any };
+			target: HTMLElement;
 		}) => {
 			event.preventDefault();
+			console.log("conttext")
 			setAnchorPoint({ x: event.pageX, y: event.pageY });
-			if (showEditorContext || showFileContext) {
-				setShowEditorContext(false);
-				setShowFileContext(false);
-			}
-			if (isFileOrFolder(event.target.id) == "file") {
-				setShowFileContext(true);
-			} else if (isFileOrFolder(event.target.id) == "folder") {
-				setShowEditorContext(true);
+			if (contextMenuSelectedNode) {
+				setContextMenuSelectedNode(undefined)
 			} else {
-				setShowEditorContext(false);
-				setShowFileContext(false);
+				setContextMenuSelectedNode(event.target)
+				console.log("setting target ", event.target)
 			}
-			setContextID(event.target.id);
+			// const fileBrowserLeaf = document.getElementById("FileTreeItems")
+			// //find its parent
+			// if(fileBrowserLeaf?.contains(event.target)) {
+			// 	if (isFileOrFolder(event.target.id) === "file") {
+			// 		//setShowFileContext(true);
+
+			// 		console.log("file")
+			// 	} else if (isFileOrFolder(event.target.id) === "folder") {
+			// 		setShowEditorContext(true);
+			// 		console.log("folder")
+			// 	} else {
+			// 		setShowEditorContext(false);
+			// 		setShowFileContext(false);
+			// 	}
+			// }	
+
+
+
 		},
 		[setAnchorPoint]
 	);
 
 	const handleContextClick = useCallback(
 		() =>
-			showEditorContext || showFileContext
-				? (setShowEditorContext(false), setShowFileContext(false))
+			contextMenuSelectedNode
+				? (setContextMenuSelectedNode(undefined))
 				: null,
-		[showEditorContext, showFileContext]
+		[contextMenuSelectedNode]
 	);
 
 	useEffect(() => {
@@ -366,9 +389,14 @@ function App() {
 			list.scrollTop = parent.offsetTop - window.innerHeight / 2;
 
 			var range = document.createRange();
-			range.selectNodeContents(child);
+
+			//range.selectNodeContents(child);
 			var sel = window.getSelection()!;
 			sel.removeAllRanges();
+
+			range.setStart(child, 1)
+			range.setEnd(child, 2)
+
 			sel.addRange(range);
 
 			const renameFile = async () => {
@@ -408,8 +436,9 @@ function App() {
 			child.addEventListener(
 				"keydown",
 				(e) => {
+					console.log(e.key)
 					if (e.key == "Enter") {
-						renameFile();
+						child.blur();
 					}
 				},
 				{ once: true }
@@ -419,21 +448,15 @@ function App() {
 				"blur",
 				(e) => {
 					renameFile();
+					var sel = window.getSelection()!;
+					sel.removeAllRanges();
 				},
 				{ once: true }
 			);
 		}
 	}, [renaming.current]);
 
-	const isFileOrFolder = (path: string) => {
-		const re = new RegExp("[.][a-z]*");
-		if (path.endsWith(".md")) {
-			return "file";
-		} else if (re.test(path)) {
-			return "none";
-		}
-		return "folder";
-	};
+
 	const showFileBrowserLeaf = () => {
 		let elements = document.getElementsByClassName("react-split__pane");
 
@@ -555,7 +578,7 @@ function App() {
 			return a.name!.localeCompare(b.name!);
 		});
 		return (
-			<div>
+			<div id="FileTreeItems">
 				{entries.map((entry: any) => {
 					return (
 						<FileTreeItem
@@ -599,7 +622,7 @@ function App() {
 
 	const onCreateEditor = useCallback(
 		async (view: EditorView, state: EditorState) => {
-			
+
 		},
 		[currentFile.path]
 	);
@@ -607,7 +630,7 @@ function App() {
 	useEffect(() => {
 		document.getElementById("");
 	}, []);
-	const[selection,setSelection] = useState(0);
+	const [selection, setSelection] = useState(0);
 
 
 	const renderSearch = () => {
@@ -621,19 +644,19 @@ function App() {
 		files = files.sort((a: any, b: any) => {
 			return a.name!.toLowerCase().localeCompare(b.name!.toLowerCase());
 		});
-		
+
 		document.addEventListener('keydown', (e) => {
-			console.log(e.key);
-			console.log(selection)
-			if(e.key == "ArrowDown"){
-				selection < files.length - 1 ? setSelection(selection+1) : setSelection(0);
-			}else if(e.key == "ArrowUp"){
-				selection > 0 ? setSelection(selection-1) : setSelection(files.length - 1);
-			}else if(e.key == "Enter"){
+			//console.log(e.key);
+			//console.log(selection)
+			if (e.key == "ArrowDown") {
+				selection < files.length - 1 ? setSelection(selection + 1) : setSelection(0);
+			} else if (e.key == "ArrowUp") {
+				selection > 0 ? setSelection(selection - 1) : setSelection(files.length - 1);
+			} else if (e.key == "Enter") {
 				let entry = files[selection];
 				setCurrentFile({ name: entry.name!, path: entry.path })
 			}
-		}, {once : true})
+		}, { once: true })
 
 
 		return (
@@ -670,22 +693,22 @@ function App() {
 						</div>
 						<div className="flex flex-col  h-full overflow-auto transform-all duration-700">
 							{
-							files.map((entry: any,index) => {
-								return (
-									<div className="text-start">
-										<div className="divider m-0" />
-										<button
-											onClick={() =>
-												setCurrentFile({ name: entry.name, path: entry.path })
-											}
-											
-											className={index == selection ? " h-fit hover:text-zinc-200 bg-zinc-800 border-none focus:border-none focus:outline-none  rounded-none w-full text-start" : "bg-transparent h-fit hover:text-zinc-200 hover:bg-zinc-900 border-none focus:border-none focus:outline-none  rounded-none w-full text-start"}
-										>
-											{entry.name}
-										</button>
-									</div>
-								);
-							})}
+								files.map((entry: any, index) => {
+									return (
+										<div className="text-start">
+											<div className="divider m-0" />
+											<button
+												onClick={() =>
+													setCurrentFile({ name: entry.name, path: entry.path })
+												}
+
+												className={index == selection ? " h-fit hover:text-zinc-200 bg-zinc-800 border-none focus:border-none focus:outline-none  rounded-none w-full text-start" : "bg-transparent h-fit hover:text-zinc-200 hover:bg-zinc-900 border-none focus:border-none focus:outline-none  rounded-none w-full text-start"}
+											>
+												{entry.name}
+											</button>
+										</div>
+									);
+								})}
 						</div>
 					</div>
 				) : null}
@@ -696,68 +719,7 @@ function App() {
 	return (
 		<div>
 			<div className="z-0 bg-zinc-900 flex flex-col w-screen h-screen overflow-hidden ">
-				{showEditorContext ? (
-					<ul
-						className="menu w-auto h-auto absolute z-50 bg-zinc-900 flex flex-col justify-between border-zinc-800 rounded-md"
-						style={{
-							top: anchorPoint.y,
-							left: anchorPoint.x,
-						}}
-					>
-						<button
-							className="flex text-center align-middle text-sm rounded-none border-none bg-transparent hover:bg-zinc-700 mt-1"
-							onClick={() => {
-								renaming.current = contextID; //, rename();
-							}}
-						>
-							<VscEdit className="text-s self-center mr-1" />
-							Rename folder
-						</button>
-						<button
-							className="flex text-center align-middle text-sm  rounded-none border-none bg-transparent hover:bg-zinc-700 mb-1"
-							onClick={() => {
-								deleteFile(contextID);
-							}}
-						>
-							<VscTrash className="text-s self-center  mr-1" />
-							Delete folder
-						</button>
-					</ul>
-				) : (
-					<> </>
-				)}
-
-				{showFileContext ? (
-					<ul
-						className="menu w-auto h-auto absolute z-50 bg-zinc-900 flex flex-col justify-between"
-						style={{
-							top: anchorPoint.y,
-							left: anchorPoint.x,
-						}}
-					>
-						<button
-							className="flex text-center align-middle text-sm  rounded-none border-none bg-transparent hover:bg-zinc-700 mt-1"
-							onClick={() => {
-								renaming.current = contextID; //, rename();
-							}}
-						>
-							<VscEdit className="text-s self-center mr-1" />
-							Rename file
-						</button>
-						<button
-							className="flex text-center align-middle text-sm  rounded-none border-none bg-transparent hover:bg-zinc-700  mb-1"
-							onClick={() => {
-								deleteFile(contextID);
-							}}
-						>
-							<VscTrash className="text-s self-center  mr-1" />
-							Delete file
-						</button>
-					</ul>
-				) : (
-					<> </>
-				)}
-
+				<ContextMenus deleteFile={deleteFile} renaming={renaming} anchorPoint={anchorPoint} selectedNode={contextMenuSelectedNode}></ContextMenus>
 				<div
 					data-tauri-drag-region
 					className="z-50 flex  w-screen right-0 left-0 justify-end bg-zinc-900 text-center text-white"
@@ -837,49 +799,49 @@ function App() {
 										</div>
 									</div>
 									{/* </ResizableBox> */}
-								</Pane>									
-									<div
-										id="contentPane"
-										className="bg-zinc-700 w-full h-full flex-1 flex-grow overflow-auto place-items-center "
-									>
-										
-										{currentFile.path != "" ? (
-											
-												<TestHarness>
-													
-													<Editor
-														onCreateEditor={onCreateEditor}
-														onChange={onChange}
-														currentFileContent={currentFileContent}
-														currentFilePath={currentFile.path}
-														className=" focus:outline-solid text-white"
-														settings={settings}
-													/>
-													{/* <div ref={editor1} /> */}
-										
-												</TestHarness>
-											
-										) : (
-											<div className="flex w-full  h-full flex-col overflow-hidden">
-												<div
-													className={
-														searchString != ""
-															? "form-control self-center  pt-40  transition-all duration-[500ms] overflow-hidden ease-in-out"
-															: "form-control self-center  pt-[40vh]   transition-all duration-[500ms] ease-in-out overflow-hidden"
-													}
-												></div>
-												<div
-													className={
-														"flex  self-center h-[80%] transition-all  relative"
-													}
-												>
-													{renderSearch()}
-												</div>
+								</Pane>
+								<div
+									id="contentPane"
+									className="bg-zinc-700 w-full h-full flex-1 flex-grow overflow-auto place-items-center "
+								>
+
+									{currentFile.path != "" ? (
+
+										<TestHarness>
+
+											<Editor
+												onCreateEditor={onCreateEditor}
+												onChange={onChange}
+												currentFileContent={currentFileContent}
+												currentFilePath={currentFile.path}
+												className=" focus:outline-solid text-white"
+												settings={settings}
+											/>
+											{/* <div ref={editor1} /> */}
+
+										</TestHarness>
+
+									) : (
+										<div className="flex w-full  h-full flex-col overflow-hidden">
+											<div
+												className={
+													searchString != ""
+														? "form-control self-center  pt-40  transition-all duration-[500ms] overflow-hidden ease-in-out"
+														: "form-control self-center  pt-[40vh]   transition-all duration-[500ms] ease-in-out overflow-hidden"
+												}
+											></div>
+											<div
+												className={
+													"flex  self-center h-[80%] transition-all  relative"
+												}
+											>
+												{renderSearch()}
 											</div>
-										)}
-										<div></div>
-									</div>
-									
+										</div>
+									)}
+									<div></div>
+								</div>
+
 								<Pane minSize={0} maxSize="50%">
 									<div
 										id="rightInfoLeaf"
@@ -930,5 +892,6 @@ function App() {
 		</div>
 	);
 }
+
 
 export default App;

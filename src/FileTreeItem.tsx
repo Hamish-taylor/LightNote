@@ -37,6 +37,8 @@ function FileTreeItem(props: any) {
 			) : (
 				<div className="tooltip-open" data-tip="Invalid character">
 				<button
+					draggable={true} onDragEnd={() => console.log("wow")}
+					onDragOver={() => console.log("gragging")}
 					id={props.entry.path}
 					type="button"
 					onClick={() => {
@@ -57,8 +59,8 @@ function FileTreeItem(props: any) {
 					}
 				>
 					
-					<div id={props.entry.path} className={ props.renaming ? "bg-black border border-blue-500" : ""} contentEditable={props.renaming} >
-						{props.entry.name}
+					<div id={props.entry.path} className={ props.renaming ? "bg-black border border-blue-500" : "bg-transparant"} contentEditable={props.renaming} >
+						 {isFileOrFolder(props.entry.path) == "file" ? <> <label id={props.entry.path} className="float-left">{props.entry.name.split(".md")[0].trimEnd()}</label> <span id={props.entry.path}className="text-left">.md</span></> : <> <label id={props.entry.path} className="float-left">{props.entry.name.split(".md")[0].trimEnd()}</label> <span id={props.entry.path}className="text-left"></span></> }
 					</div>
 					{isFileOrFolder(props.entry.path) == "folder" ? (
 						<IoMdArrowDropdown className="place-self-center" />

@@ -136,9 +136,9 @@ function Editor(props: any) {
 		cursor.next()
 			if (cursor.value.from < cursor.value.to) {
 				view.dispatch({
-					effects: highlight_effect.of([
-						highlight_decoration.range(cursor.value.from, cursor.value.to),
-					]),
+					effects: highlight_effect.of(
+						highlight_decoration.range(cursor.value.from, cursor.value.to) as any
+					),
 				});
 			}
 		}
