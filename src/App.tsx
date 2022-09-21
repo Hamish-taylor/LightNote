@@ -28,7 +28,7 @@ import {
 
 import { fs, invoke } from "@tauri-apps/api";
 
-import Editor from "./Editor";
+import {Editor} from "./Editor";
 import SideBar from "./SideBar";
 
 import FileTreeItem from "./FileTreeItem";
@@ -59,7 +59,7 @@ function TestHarness({ children }: { children?: React.ReactNode }) {
 
 export const isFileOrFolder = (path: string) => {
 	const re = new RegExp("[.][a-z]*");
-	console.log(path)
+	// console.log(path)
 	if ((path.toLowerCase()).endsWith(".md")) {
 		return "file";
 	} else if (re.test(path)) {
@@ -184,11 +184,11 @@ function App() {
 				const line = text[i];
 				if (line.trim().startsWith("#")) {
 					const { count, name } = countHeading(line);
-					if (count > level) console.log(count, name, level);
+					//if (count > level) console.log(count, name, level);
 					if (count > level) {
-						console.log("Passing to children " + text.slice(i + 1));
+						//console.log("Passing to children " + text.slice(i + 1));
 						const { remainder, data } = process(count, text.slice(i + 1));
-						console.log(remainder, data);
+						//console.log(remainder, data);
 						text = remainder;
 						i = -1;
 						children = {
@@ -196,30 +196,30 @@ function App() {
 							[name]: data,
 						};
 					} else {
-						console.log(lines, children);
-						console.log("Remainder: " + text.slice(i));
+						//console.log(lines, children);
+						//console.log("Remainder: " + text.slice(i));
 						return {
 							remainder: text.slice(i),
 							data: { lines: lines, children: children },
 						};
 					}
 				} else {
-					console.log("Pushing" + line);
+					//console.log("Pushing" + line);
 					lines.push(line);
 				}
 			}
 			return { remainder: [], data: { lines: lines, children: children } };
 		};
 
-		console.log("processing file: " + text);
+		//console.log("processing file: " + text);
 		const wow = process(0, lines);
-		console.log('{"' + name + '" : ' + JSON.stringify(wow.data) + "}");
+		//console.log('{"' + name + '" : ' + JSON.stringify(wow.data) + "}");
 		return wow.data;
 	};
 
 	const generateHeadingDisplay = (curFile: string) => {
 		const file = processFile(curFile);
-		console.log(file);
+		// console.log(file);
 
 		const heading = (
 			child: { lines: string[]; children: { [key: string]: any } },
@@ -229,7 +229,7 @@ function App() {
 			let count = 1;
 
 			Object.entries(child.children).forEach(([key]) => {
-				console.log(key);
+				// console.log(key);
 
 				if (level != "") {
 					ret.push(
@@ -262,7 +262,7 @@ function App() {
 	const loadSettings = async () => {
 		let files = undefined;
 		const path = await documentDir();
-		console.log(path);
+		// console.log(path);
 		try {
 			files = await readDir(path + "/LightWay", { recursive: true });
 			let set = await readTextFile(
@@ -542,6 +542,7 @@ function App() {
 		//console.log(path);
 		const file = await readTextFile(path);
 		setCurrentFileContent(file);
+		// console.log(file)
 		setChangeFile(true);
 		generateHeadingDisplay(file);
 		document.dispatchEvent(customEvent);
@@ -611,21 +612,15 @@ function App() {
 		async (value: any) => {
 			//save the file
 
-			countWords(value);
-			await writeTextFile(currentFile.path, value);
-			generateHeadingDisplay(value);
-
-
-		},
-		[currentFile.path]
-	);
-
-	const onCreateEditor = useCallback(
-		async (view: EditorView, state: EditorState) => {
+			//countWords(value);
+			//await writeTextFile(currentFile.path, value);
+			//generateHeadingDisplay(value);
+			console.log(value.state.doc.content.content[1].content.content[0].text);
 
 		},
 		[currentFile.path]
 	);
+
 
 	useEffect(() => {
 		document.getElementById("");
@@ -806,20 +801,26 @@ function App() {
 								>
 
 									{currentFile.path != "" ? (
-
-										<TestHarness>
-
 											<Editor
-												onCreateEditor={onCreateEditor}
 												onChange={onChange}
 												currentFileContent={currentFileContent}
-												currentFilePath={currentFile.path}
-												className=" focus:outline-solid text-white"
-												settings={settings}
+												//currentFilePath={currentFile.path}
+												//className="focus:outline-solid text-white"
+												//settings={settings}
 											/>
-											{/* <div ref={editor1} /> */}
+										// <TestHarness>
 
-										</TestHarness>
+										// 	<Editor
+										// 		onCreateEditor={onCreateEditor}
+										// 		onChange={onChange}
+										// 		currentFileContent={currentFileContent}
+										// 		currentFilePath={currentFile.path}
+										// 		className=" focus:outline-solid text-white"
+										// 		settings={settings}
+										// 	/>
+										// 	{/* <div ref={editor1} /> */}
+
+										// </TestHarness>
 
 									) : (
 										<div className="flex w-full  h-full flex-col overflow-hidden">

@@ -21,6 +21,9 @@
     "@codemirror/state": "^6.1.0",
     "@codemirror/view": "^6.1.2",
     "@lezer/common": "^1.0.0",
+    "@remirror/pm": "2.0.0-beta.14",
+    "@remirror/react": "^1.0.43",
+    "@remirror/react-editors": "^0.1.89",
     "@szhsin/react-menu": "^3.1.1",
     "@tauri-apps/api": "^1.0.2",
     "@uiw/codemirror-themes": "^4.11.4",
@@ -32,6 +35,7 @@
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-icons": "^4.4.0",
+    "remirror": "^1.0.89",
     "split-pane-react": "^0.0.1"
   },
   "devDependencies": {
