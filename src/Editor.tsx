@@ -1,11 +1,10 @@
 import 'remirror/styles/all.css';
 
-import { BoldExtension, HeadingExtension, ImageExtension, ItalicExtension, MarkdownExtension } from 'remirror/extensions';
-import { useHelpers, Remirror, useRemirror, useRemirrorContext, useCommands, useChainedCommands } from '@remirror/react';
+import { BoldExtension, HeadingExtension , ImageExtension, ItalicExtension, MarkdownExtension } from 'remirror/extensions';
+import {Remirror, useRemirror } from '@remirror/react';
 import { RemirrorEventListener } from '@remirror/core';
 import { useEffect, useState,useImperativeHandle, useCallback  } from 'react';
 import { Transaction } from '@remirror/pm/dist-types/state';
-
 
 import {
   ApplySchemaAttributes,
@@ -26,60 +25,27 @@ import {
 export const Editor = (props: { currentFileContent: string; onChange: RemirrorEventListener<Remirror.Extensions> | undefined; } ) => {
   
   const { manager, state,setState  } = useRemirror({
-    extensions: () => [new BoldExtension(), new MarkdownExtension(),new HeadingExtension(), new ImageExtension(), new ItalicExtension()],
+    extensions: () => [new HeadingExtension(), new MarkdownExtension(), new BoldExtension(), new ItalicExtension(),  new ImageExtension() ],
     content: "props.currentFileContent",
-    selection: 'start',
+
     stringHandler: 'markdown',
   });
-  const chain = useChainedCommands();
 
-  const handleUpdateHref = useCallback(
-    (href) => {
-      chain.focus();
-  
-      if (href === '') {
-        chain.removeLink();
-      } else {
-        chain.updateLink({ href });
-      }
-  
-      chain.run();
-    },
-    [chain],
-  );
-
-  const Editor = () => {
-    const [boldActive] = useState(false);
-  
-    const { getRootProps, commands } = useRemirrorContext({ autoUpdate: true });
-  
-    return (
-      <div>
-        <button
-          onClick={() => commands.toggleBold()}
-          style={{ fontWeight: activeCommands.bold ? 'bold' : undefined }}
-        >
-          B
-        </button>
-        <div {...getRootProps()} />
-      </div>
-    );
-  }
-
+ 
 const onDispatchTransaction = useCallback((tr:Transaction ) => {
-  //get the selected node
-  // const { toggleBold, toggleItalic,toggleHeading } = useCommands();
-  const node = tr.selection.$from.node();
-  //change the markup of the node
-  if(node.type.name === "heading") {
 
-  }
 
-  
+  return tr;
 }, []);
 
   
-
+  useEffect(() => {
+    console.log(props.currentFileContent);
+    if(props.currentFileContent !== ""){
+      //set the content of the editor
+      setState(manager.createState({ content: props.currentFileContent, stringHandler: 'markdown' }));
+    }
+  }, [props.currentFileContent]);
 
 
   return (
