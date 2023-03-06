@@ -153,7 +153,6 @@ function Editor(props: any) {
 	};
 
 	const onCreateEditor = (view: EditorView, state: EditorState) => {
-		console.log("wow");
 		highlight(view);
 	};
 	return (
