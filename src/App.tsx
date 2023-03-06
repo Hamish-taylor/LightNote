@@ -177,7 +177,7 @@ function App() {
         try {
             await writeTextFile(settings.mainFolder.value + "\\" + name + ".md", "");
             await readFiles();
-            setCurrentFile({ name: name, path: settings.mainFolder.value });
+            setCurrentFile({ name: name, path: settings.mainFolder.value + "\\" + name + ".md" });
             openNewFile(settings.mainFolder.value + "\\" + name, name);
             return true
         } catch (error) {
@@ -245,11 +245,6 @@ function App() {
         };
     });
 
-
-    const showSettingsModal = () => {
-        setSettingsModal(!settingsModal);
-    };
-
     const openNewFile = async (path: string, name: string) => {
         if (name.includes(".md")) {
             setCurrentFile({ name: name, path: path });
@@ -285,20 +280,19 @@ function App() {
     useEffect(() => {
         if (currentFile.path != "" && currentFile.path.includes(".md")) {
             readFile(currentFile.path);
+        } else {
+            console.log(currentFile)
         }
     }, [currentFile]);
 
     const deleteFile = async (path: string) => {
-        const p = path.replace(":name", "");
-        if (currentFile.path == p) {
+        console.log(currentFile.path + " " + path)
+        if (currentFile.path == path) {
+            console.log("yes")
             setCurrentFile({ path: "", name: "" });
             setCurrentFileContent("");
         }
-        if (isFileOrFolder(p) == "file") {
-            await invoke("deleteFile", { path: p });
-        } else if (isFileOrFolder(p) == "folder") {
-            await invoke("deleteDir", { path: p });
-        }
+        await invoke("deleteFile", { path: path });
         await readFiles();
     };
 
@@ -332,14 +326,16 @@ function App() {
     ]
     const renderSearch = () => {
         let files = []
-        if (searchString.startsWith(command_prefix)) {
+        if (searchString.startsWith(command_prefix) && !searchString.startsWith(command_prefix + "delete")) {
             files = command_noun.filter((command: any) => {
                 return (command_prefix + command.name).toLowerCase().includes(searchString.toLowerCase())
             })
         } else {
+            let ss = searchString
+            if (searchString.startsWith(command_prefix + "delete")) ss = searchString.replace(command_prefix + 'delete', '').trim()
             files = allPaths.filter((file: any) => {
                 return (
-                    file.name!.toLowerCase().includes(searchString.toLowerCase()) &&
+                    file.name!.toLowerCase().includes(ss.toLowerCase()) &&
                     isFileOrFolder(file.path) == "file"
                 );
             });
@@ -384,18 +380,21 @@ function App() {
                         })
 
                     } else if (command == "delete") {
-
-
+                        let name = files[selection];
+                        deleteFile(name.path)
+                        setShowCommandWindow(false)
                     } else if (command == "copy") {
 
                     }
                 } else {
-                    let entry = files[selection];
-                    setCurrentFile({ name: entry.name!, path: entry.path })
+                    if (files.length == 0) createNewFile(searchString)
+                    else {
+                        let entry = files[selection];
+                        setCurrentFile({ name: entry.name!, path: entry.path })
+                    }
                     setShowCommandWindow(false)
                     setSearchString("")
                     setSelection(0)
-
                 }
             }
         }, { once: true })
@@ -417,7 +416,7 @@ function App() {
                         <div className="flex flex-col h-full justify-center hover-border-none transition-colors max-h-[50vh] hover:border-zinc-600 bg-slate-800  border-zinc-700">
                             <div className="flex w-full flex-row" >
                                 <div className="ml-5 w-[50%] block text-left text-zinc-400">
-                                    {searchString.startsWith(command_prefix) ? <div>Execute a command</div> : <div> Open a file</div>}
+                                    {files.length == 0 ? <div>Create file called: {searchString + '.md'}</div> : (searchString.startsWith(command_prefix) ? <div>Execute a command</div> : <div> Open a file</div>)}
                                 </div>
 
                                 <div className="mr-5 w-[50%] block text-right text-zinc-400">
