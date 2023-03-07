@@ -331,14 +331,21 @@ function App() {
                 return (command_prefix + command.name).toLowerCase().includes(searchString.toLowerCase())
             })
         } else {
-            let ss = searchString
-            if (searchString.startsWith(command_prefix + "delete")) ss = searchString.replace(command_prefix + 'delete', '').trim()
-            files = allPaths.filter((file: any) => {
-                return (
-                    file.name!.toLowerCase().includes(ss.toLowerCase()) &&
-                    isFileOrFolder(file.path) == "file"
-                );
-            });
+            if (searchString == "") {
+                files = allPaths.filter((file: any) => {
+                    return isFileOrFolder(file.path) == "file"
+                })
+            } else {
+                let ss = searchString
+                if (searchString.startsWith(command_prefix + "delete")) ss = searchString.replace(command_prefix + 'delete', '').trim()
+                files = allPaths.filter((file: any) => {
+                    return (
+                        file.name!.toLowerCase().includes(ss.toLowerCase()) &&
+                        isFileOrFolder(file.path) == "file"
+                    );
+                });
+
+            }
 
             files = files.sort((a: any, b: any) => {
                 return a.name!.toLowerCase().localeCompare(b.name!.toLowerCase());
@@ -387,7 +394,7 @@ function App() {
 
                     }
                 } else {
-                    if (files.length == 0) createNewFile(searchString)
+                    if (files.length == 0 && searchString != "") createNewFile(searchString)
                     else {
                         let entry = files[selection];
                         setCurrentFile({ name: entry.name!, path: entry.path })
@@ -396,7 +403,18 @@ function App() {
                     setSearchString("")
                     setSelection(0)
                 }
+            } else if (e.key == "Tab") {
+                e.preventDefault()
+                if (searchString.startsWith(command_prefix)) {
+                    let s = (command_prefix+ files[selection].name).replace(searchString, "")
+                    setSearchString(searchString + s + " ")
+                } else {
+                    let s = (files[selection].name).replace(searchString, "")
+                    setSearchString(searchString + s)
+                }
+                setSelection(0)
             }
+
         }, { once: true })
 
 
@@ -410,39 +428,38 @@ function App() {
                             placeholder="Search…"
                             className="input w-full outline-none rounded-none focus:outline-none focus:border-none"
                             autoFocus
+                            value={searchString}
                         />
                     </div>
-                    {searchString != "" ? (
-                        <div className="flex flex-col h-full justify-center hover-border-none transition-colors max-h-[50vh] hover:border-zinc-600 bg-slate-800  border-zinc-700">
-                            <div className="flex w-full flex-row" >
-                                <div className="ml-5 w-[50%] block text-left text-zinc-400">
-                                    {files.length == 0 ? <div>Create file called: {searchString + '.md'}</div> : (searchString.startsWith(command_prefix) ? <div>Execute a command</div> : <div> Open a file</div>)}
-                                </div>
-
-                                <div className="mr-5 w-[50%] block text-right text-zinc-400">
-                                    {files.length} results
-                                </div>
+                    <div className="flex flex-col h-full justify-center hover-border-none transition-colors max-h-[50vh] hover:border-zinc-600 bg-slate-800  border-zinc-700">
+                        <div className="flex w-full flex-row" >
+                            <div className="ml-5 w-[50%] block text-left text-zinc-400">
+                                {files.length == 0 && searchString != "" && !searchString.startsWith(command_prefix) ? <div>Create file called: {searchString}</div> : (searchString.startsWith(command_prefix) ? <div>Execute a command</div> : <div> Open a file</div>)}
                             </div>
-                            <div className="flex flex-col h-full w-full overflow-auto duration-700">
-                                {
-                                    files.map((entry: any, index) => {
-                                        return (
-                                            <div className="text-start" id={entry.name}>
-                                                <button
-                                                    onClick={() =>
-                                                        setCurrentFile({ name: entry.name, path: entry.path })
-                                                    }
 
-                                                    className={index == selection ? " h-fit hover:text-zinc-200 bg-zinc-800 border-none focus:border-none focus:outline-none  rounded-none w-full text-start" : "bg-transparent h-fit hover:text-zinc-200 hover:bg-zinc-900 border-none focus:border-none focus:outline-none  rounded-none w-full text-start"}
-                                                >
-                                                    {entry.name}
-                                                </button>
-                                            </div>
-                                        );
-                                    })}
+                            <div className="mr-5 w-[50%] block text-right text-zinc-400">
+                                {files.length} results
                             </div>
                         </div>
-                    ) : null}
+                        <div className="flex flex-col h-full w-full overflow-auto duration-700">
+                            {
+                                files.map((entry: any, index) => {
+                                    return (
+                                        <div className="text-start" id={entry.name}>
+                                            <button
+                                                onClick={() =>
+                                                    setCurrentFile({ name: entry.name, path: entry.path })
+                                                }
+
+                                                className={index == selection ? " h-fit hover:text-zinc-200 bg-zinc-800 border-none focus:border-none focus:outline-none  rounded-none w-full text-start" : "bg-transparent h-fit hover:text-zinc-200 hover:bg-zinc-900 border-none focus:border-none focus:outline-none  rounded-none w-full text-start"}
+                                            >
+                                                {entry.name}
+                                            </button>
+                                        </div>
+                                    );
+                                })}
+                        </div>
+                    </div>
                 </div>
             </div>
         );
