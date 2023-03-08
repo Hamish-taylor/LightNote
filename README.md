@@ -9,11 +9,11 @@ A light-weight command based note-taking application written using Tauri, React,
 
 ### Basic build instructions
 #### Prerequisites
-Rust (https://www.rust-lang.org/tools/install)
-Node and npm (https://nodejs.org/en/download/)
+- Rust (https://www.rust-lang.org/tools/install)
+- Node and npm (https://nodejs.org/en/download/)
 
 #### Steps
-4. Clone repository or download release source code
-5. Navigate to the repo and run "npm install"
-6. Use "npm run tauri dev" to run the application in development mode
+1. Clone repository or download release source code
+2. Navigate to the repo and run "npm install"
+3. Use "npm run tauri dev" to run the application in development mode
 
