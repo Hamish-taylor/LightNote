@@ -1,14 +1,10 @@
 # LightNote
-A light-weight note-taking application written using Tauri, React, and Vite.
-Currently, the application is focused on just Markdown editing, as such it can only currently open .md files.
+A light-weight command based note-taking application written using Tauri, React, and Vite.
 
-### IMPORTANT INFORMATION
-*This is in very early stages of development!*
-It contains the absolute bare minimum to be considered a Note-taking app, however, there are still many issues and caveats that would make the application all kinds of impossible to actually use. 
-
-The application in its current state is ***Heavily*** inspired by [Obsidian.md](https://obsidian.md/) (Check it out, it's much better than this project will ever be), the long term intention of the app is not to be a clone of obsidian, currently I am just using it as a guide to help teach myself UI design before taking the application down its own path.
-
-
+## Application goals
+- Provide a minimal command based UI for creating, deleting, and opening markdown files. *Status: nearing completion, almost usable*
+- Provide a tag based workflow where notes can be assigned user created tags to link and catogorize notes. All physical .md files will be stored inside of a single folder. The driving idea behind this workflow is to remove folders and to provide a more user friendly way of catagorizing notes. *Status: To be started*
+- Provide a powerfull plugin management system that can allow users to customize the existing UI and to add whatever features they want to create a fully personalised experience. *Status: To be started*
 
 
 ### Basic build instructions
