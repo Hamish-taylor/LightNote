@@ -110,18 +110,14 @@ function App() {
 
     const [anchorPoint, setAnchorPoint] = useState({ x: 0, y: 0 });
 
-    const [changeFile, setChangeFile] = useState(false);
     // const [DOMreloaded, setDOMreloaded] = useState(false);
     const [searchString, setSearchString] = useState("");
 
-    const [fileHeadingDisplay, setFileHeadingDisplay] = useState<
-        ReactNode | undefined
-    >();
 
     const [commandMenuError, setCommndMenuError] = useState("")
+    const [selection, setSelection] = useState(0);
+    const [selectedCommandMenuItem, setSelectedCommandMenuItem] = useState("")
 
-    // let changeFile = useRef(false);
-    //const [id, forceUpdate] = useReducer((x) => x + 1, 0);
     useHotkeys('control+p', event => {
         event.preventDefault()
         setShowCommandWindow(!showCommandWindow)
@@ -185,26 +181,6 @@ function App() {
         }
     };
 
-    const createNewFolder = async () => {
-        let num = 0;
-        let loop = true;
-
-        let newFolderName = settings.mainFolder.value + "\\" + "Untitled";
-
-        while (loop) {
-            try {
-                await createDir(newFolderName);
-                loop = false;
-            } catch (error) {
-                num += 1;
-                newFolderName = settings.mainFolder.value + "\\" + "Untitled " + num;
-            }
-        }
-
-        await readFiles();
-        renaming.current = newFolderName;
-    };
-
     const handleContextMenu = useCallback(
         (event: {
             preventDefault: () => void;
@@ -213,13 +189,11 @@ function App() {
             target: HTMLElement;
         }) => {
             event.preventDefault();
-            console.log("conttext")
             setAnchorPoint({ x: event.pageX, y: event.pageY });
             if (contextMenuSelectedNode) {
                 setContextMenuSelectedNode(undefined)
             } else {
                 setContextMenuSelectedNode(event.target)
-                console.log("setting target ", event.target)
             }
         },
         [setAnchorPoint]
@@ -260,14 +234,12 @@ function App() {
     };
     const customEvent = new CustomEvent("file-read");
     const readFile = async (path: string) => {
-        //console.log(path);
         const file = await readTextFile(path);
         setCurrentFileContent(file);
-        setChangeFile(true);
         document.dispatchEvent(customEvent);
     };
 
-    const countWords = (str: string) => {
+    const countwords = (str: string) => {
         var count = 0;
         str.split(/\s+/).forEach((str) => {
             str.length > 0 ? count++ : null;
@@ -282,14 +254,14 @@ function App() {
         }
     }, [currentFile]);
 
-    const deleteFile = async (path: string) => {
-        console.log(currentFile.path + " " + path)
-        if (currentFile.path == path) {
+    const deleteFile = async (name: string) => {
+        console.log(currentFile.path + " " + name)
+        if (currentFile.name == name) {
             console.log("yes")
             setCurrentFile({ path: "", name: "" });
             setCurrentFileContent("");
         }
-        await invoke("deleteFile", { path: path });
+        await invoke("delete_file", { path: settings.mainFolder.value + "\\" + name });
         await readFiles();
     };
 
@@ -314,21 +286,19 @@ function App() {
     useEffect(() => {
         document.getElementById("");
     }, []);
-    const [selection, setSelection] = useState(0);
-    const command_prefix = '/'
-    const command_list = {
+    const commandPrefix = '/'
+    const commandList = {
         description: "execute command",
         items: [
-            { name: command_prefix + "create" },
-            { name: command_prefix + "delete" },
-            { name: command_prefix + "duplicate" }
+            { name: commandPrefix + "create" },
+            { name: commandPrefix + "delete" },
+            { name: commandPrefix + "duplicate" }
         ]
     }
-    const files_list = {
+    const filesList = {
         description: "open file",
         items: allPaths
     }
-    const [selectedCommandMenuItem, setSelectedCommandMenuItem] = useState("")
     const fileExists = (input: string) => {
         allPaths.forEach(element => {
             if (element.name == input) return true
@@ -340,9 +310,6 @@ function App() {
     const anyFileBeginsWith = (input: string) => {
         let found = false
         allPaths.forEach(element => {
-            console.log(element.name.trim().toLowerCase())
-            console.log(input.toLowerCase().trim())
-            console.log(element.name?.trim().toLowerCase().startsWith(input.toLowerCase().trim()))
             if (element.name?.trim().toLowerCase().startsWith(input.toLowerCase().trim())) {
                 found = true
             }
@@ -358,16 +325,12 @@ function App() {
         return !fileExists(input) && validFileName(input)
     }
 
-    const validateDeleteInput = (input: string) => {
-        return fileExists(input)
-    }
-
     useEffect(() => {
 
     }, [selectedCommandMenuItem])
     useEffect(() => {
         setSelectedCommandMenuItem("")
-        if (searchString.startsWith(command_prefix)) {
+        if (searchString.startsWith(commandPrefix)) {
             //is a command
             let command = searchString.trim().split(' ')[0].substring(1)
             let fileName = searchString.trim().split(' ')[1]
@@ -399,9 +362,9 @@ function App() {
         //filter and order items 
 
         //filter each list based off the input string
-        let files = files_list.items.filter((file: any) => {
+        let files = filesList.items.filter((file: any) => {
             return (
-                (file.name!.toLowerCase().includes(searchString.trim().toLowerCase()) || file.name!.toLowerCase().includes(searchString.trim().replace(command_prefix + 'delete', "").trimStart())) &&
+                (file.name!.toLowerCase().includes(searchString.trim().toLowerCase()) || file.name!.toLowerCase().includes(searchString.trim().toLowerCase().replace(commandPrefix + 'delete', "").trimStart())) &&
                 isFileOrFolder(file.path) == "file"
             );
         });
@@ -410,7 +373,7 @@ function App() {
             return a.name!.toLowerCase().localeCompare(b.name!.toLowerCase());
         });
 
-        let commands = command_list.items.filter((command: any) => {
+        let commands = commandList.items.filter((command: any) => {
             return (command.name).toLowerCase().includes(searchString.trim().toLowerCase())
         })
         let masterList = []
@@ -453,14 +416,13 @@ function App() {
                 selection > 0 ? setSelection(selection - 1) : setSelection(masterList.length - 1)
                 setSelectedCommandMenuItem(masterList[selection > 0 ? selection - 1 : masterList.length - 1])
             } else if (e.key == "Enter") {
-                if (searchString.trim().startsWith(command_prefix)) {
+                if (searchString.trim().startsWith(commandPrefix)) {
                     let command = searchString.trim().split(' ')[0].substring(1)
                     let fileName = searchString.trim().split(' ')[1]
 
                     if (command == "create") {
                         if (validateCreateInput(fileName)) {
                             createNewFile(fileName).then((value) => {
-                                console.log(value)
                                 if (value) {
                                     setShowCommandWindow(false)
                                 }
@@ -470,8 +432,8 @@ function App() {
                         }
 
                     } else if (command == "delete") {
-                        let name = files[selection];
-                        deleteFile(name.path)
+                        let name = masterList[selection];
+                        deleteFile(name)
                         setShowCommandWindow(false)
                     } else if (command == "duplicate") {
 
@@ -494,8 +456,15 @@ function App() {
                     let split = searchString.split(' ')
                     let toComplete = split[split.length - 1]
 
-                    setSearchString(searchString.replace(toComplete, '') + masterList[selection])
-                    setSelection(0)
+                    let res = ""
+                    split.pop()
+                    split.forEach((s) => {
+                        res += " " + s
+                    })
+                    res += " " + masterList[selection]
+
+                    setSearchString(res.trim())
+                    setselection(0)
                     setSelectedCommandMenuItem(masterList[0])
                 }
             }
@@ -521,9 +490,9 @@ function App() {
                         </div>
                     </div>
 
-                    <CommandMenu error={commandMenuError} description={files_list.description} list={files} selection={selectedCommandMenuItem} />
+                    <CommandMenu error={commandMenuError} description={filesList.description} list={files} selection={selectedCommandMenuItem} />
 
-                    <CommandMenu error={commandMenuError} description={command_list.description} list={commands} selection={selectedCommandMenuItem} />
+                    <CommandMenu error={commandMenuError} description={commandList.description} list={commands} selection={selectedCommandMenuItem} />
                 </div>
             </div>
         );

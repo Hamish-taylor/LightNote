@@ -4,10 +4,9 @@
 )]
 
 use directories::UserDirs;
-use tauri::Manager;
 
 #[tauri::command]
-fn deleteDir(path: &str) {
+fn delete_dir(path: &str) {
   println!("Deleting: {}", path);
   let res = std::fs::remove_dir_all(path);
   if let Err(e) = res {
@@ -16,7 +15,7 @@ fn deleteDir(path: &str) {
 }
 
 #[tauri::command]
-fn deleteFile(path: &str) {
+fn delete_file(path: &str) {
   println!("Deleting: {}", path);
   let res = std::fs::remove_file(path);
   if let Err(e) = res {
@@ -24,25 +23,11 @@ fn deleteFile(path: &str) {
   }
 }
 
-fn loadSettings() -> String {
-  let mut documents_dir = "";
-  if let Some(user_dirs) = UserDirs::new() {
-    documents_dir = user_dirs.document_dir().unwrap().to_str().unwrap();
-
-    //read the documents directory
-    let settings_path = format!("{}/lightway/LightWay.json", documents_dir);
-    let settings = std::fs::read_to_string(settings_path).unwrap();
-    return settings;
-  }else {
-    return "".to_string();
-  }
-}
-
 fn main() {
   tauri::Builder::default()
     .invoke_handler(tauri::generate_handler![
-      deleteDir,
-      deleteFile,
+      delete_dir,
+      delete_file,
     ])
     .run(tauri::generate_context!())
     .expect("error while running tauri application");
