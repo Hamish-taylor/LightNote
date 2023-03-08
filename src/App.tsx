@@ -34,6 +34,8 @@ import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 
 import { useHotkeys } from 'react-hotkeys-hook'
+import CommandMenu from "./CommandMenu";
+import { search } from "@codemirror/search";
 
 
 
@@ -116,13 +118,11 @@ function App() {
         ReactNode | undefined
     >();
 
+    const [commandMenuError, setCommndMenuError] = useState("")
+
     // let changeFile = useRef(false);
     //const [id, forceUpdate] = useReducer((x) => x + 1, 0);
-    useEffect(() => {
-        console.log(showCommandWindow)
-    }, [showCommandWindow])
     useHotkeys('control+p', event => {
-        console.log("hotkey")
         event.preventDefault()
         setShowCommandWindow(!showCommandWindow)
         setSearchString("")
@@ -156,7 +156,6 @@ function App() {
     const loadSettings = async () => {
         let files = undefined;
         const path = await documentDir();
-        console.log(path);
         try {
             files = await readDir(path + "/LightWay", { recursive: true });
             let set = await readTextFile(
@@ -257,7 +256,6 @@ function App() {
                 //   recursive: true,
             });
             setAllPaths(entries);
-            console.log(entries)
         }
     };
     const customEvent = new CustomEvent("file-read");
@@ -281,7 +279,6 @@ function App() {
         if (currentFile.path != "" && currentFile.path.includes(".md")) {
             readFile(currentFile.path);
         } else {
-            console.log(currentFile)
         }
     }, [currentFile]);
 
@@ -319,104 +316,191 @@ function App() {
     }, []);
     const [selection, setSelection] = useState(0);
     const command_prefix = '/'
-    const command_noun = [
-        { name: "create" },
-        { name: "delete" },
-        { name: "copy" }
-    ]
-    const renderSearch = () => {
-        let files = []
-        if (searchString.startsWith(command_prefix) && !searchString.startsWith(command_prefix + "delete")) {
-            files = command_noun.filter((command: any) => {
-                return (command_prefix + command.name).toLowerCase().includes(searchString.toLowerCase())
-            })
-        } else {
-            if (searchString == "") {
-                files = allPaths.filter((file: any) => {
-                    return isFileOrFolder(file.path) == "file"
-                })
-            } else {
-                let ss = searchString
-                if (searchString.startsWith(command_prefix + "delete")) ss = searchString.replace(command_prefix + 'delete', '').trim()
-                files = allPaths.filter((file: any) => {
-                    return (
-                        file.name!.toLowerCase().includes(ss.toLowerCase()) &&
-                        isFileOrFolder(file.path) == "file"
-                    );
-                });
+    const command_list = {
+        description: "execute command",
+        items: [
+            { name: command_prefix + "create" },
+            { name: command_prefix + "delete" },
+            { name: command_prefix + "duplicate" }
+        ]
+    }
+    const files_list = {
+        description: "open file",
+        items: allPaths
+    }
+    const [selectedCommandMenuItem, setSelectedCommandMenuItem] = useState("")
+    const fileExists = (input: string) => {
+        allPaths.forEach(element => {
+            if (element.name == input) return true
+        });
+        return false
+    }
 
+
+    const anyFileBeginsWith = (input: string) => {
+        let found = false
+        allPaths.forEach(element => {
+            console.log(element.name.trim().toLowerCase())
+            console.log(input.toLowerCase().trim())
+            console.log(element.name?.trim().toLowerCase().startsWith(input.toLowerCase().trim()))
+            if (element.name?.trim().toLowerCase().startsWith(input.toLowerCase().trim())) {
+                found = true
             }
+        })
+        return found
+    }
 
-            files = files.sort((a: any, b: any) => {
-                return a.name!.toLowerCase().localeCompare(b.name!.toLowerCase());
-            });
+    const validFileName = (input: string) => {
+        if (input.match(".*[<>:\"/\\|?*].*") != null) return false
+        return true
+    }
+    const validateCreateInput = (input: string) => {
+        return !fileExists(input) && validFileName(input)
+    }
 
+    const validateDeleteInput = (input: string) => {
+        return fileExists(input)
+    }
+
+    useEffect(() => {
+
+    }, [selectedCommandMenuItem])
+    useEffect(() => {
+        setSelectedCommandMenuItem("")
+        if (searchString.startsWith(command_prefix)) {
+            //is a command
+            let command = searchString.trim().split(' ')[0].substring(1)
+            let fileName = searchString.trim().split(' ')[1]
+            if (command == "create" && fileName != undefined) {
+                if (!validFileName(fileName)) setCommndMenuError('invalid file name')
+                else if (fileExists(fileName)) setCommndMenuError('file already exists')
+                else setCommndMenuError("")
+            } else if (command == "delete" && fileName != undefined && fileName != "") {
+                if (!anyFileBeginsWith(fileName)) setCommndMenuError('file does not exist')
+                else setCommndMenuError("")
+            } else {
+                setCommndMenuError("")
+            }
+        } else {
+            //is an open/create file
+            if (!validFileName(searchString)) {
+                setCommndMenuError('invalid file name')
+            } else {
+                setCommndMenuError("")
+            }
         }
+    }, [searchString])
+
+    useEffect(() => {
+
+    }, [commandMenuError])
+
+    const renderSearch = () => {
+        //filter and order items 
+
+        //filter each list based off the input string
+        let files = files_list.items.filter((file: any) => {
+            return (
+                (file.name!.toLowerCase().includes(searchString.trim().toLowerCase()) || file.name!.toLowerCase().includes(searchString.trim().replace(command_prefix + 'delete', "").trimStart())) &&
+                isFileOrFolder(file.path) == "file"
+            );
+        });
+
+        files = files.sort((a: any, b: any) => {
+            return a.name!.toLowerCase().localeCompare(b.name!.toLowerCase());
+        });
+
+        let commands = command_list.items.filter((command: any) => {
+            return (command.name).toLowerCase().includes(searchString.trim().toLowerCase())
+        })
+        let masterList = []
+
+        files.forEach((item) => masterList.push(item.name))
+        commands.forEach((item) => masterList.push(item.name))
+
+        if (selectedCommandMenuItem === "") setSelectedCommandMenuItem(masterList[selection])
+
+        if (selectedCommandMenuItem == undefined && masterList.length > 0) {
+            setSelectedCommandMenuItem(masterList[0])
+            setSelection(0)
+        }
+
+        if (selection > masterList.length - 1) {
+            setSelection(masterList.length - 1)
+            setSelectedCommandMenuItem(masterList[masterList.length - 1])
+        }
+        //handle key inputs
         document.addEventListener('keydown', (e) => {
 
             if (e.key == "ArrowDown") {
-                document.getElementById(files[(selection < files.length - 1 ? selection + 1 : 0)].name)?.scrollIntoView({
+                e.preventDefault()
+                document.getElementById(masterList[(selection < files.length - 1 ? selection + 1 : 0)])?.scrollIntoView({
                     behavior: 'auto',
                     block: 'center',
                     inline: 'center'
 
                 })
-                selection < files.length - 1 ? setSelection(selection + 1) : setSelection(0);
+                selection < masterList.length - 1 ? setSelection(selection + 1) : setSelection(0);
+                setSelectedCommandMenuItem(masterList[selection < masterList.length - 1 ? selection + 1 : 0])
             } else if (e.key == "ArrowUp") {
-                document.getElementById(files[(selection > 0 ? selection - 1 : files.length - 1)].name)?.scrollIntoView({
+                e.preventDefault()
+                document.getElementById(masterList[(selection > 0 ? selection - 1 : files.length - 1)])?.scrollIntoView({
                     behavior: 'auto',
                     block: 'center',
                     inline: 'center'
 
                 })
-                selection > 0 ? setSelection(selection - 1) : setSelection(files.length - 1)
+                selection > 0 ? setSelection(selection - 1) : setSelection(masterList.length - 1)
+                setSelectedCommandMenuItem(masterList[selection > 0 ? selection - 1 : masterList.length - 1])
             } else if (e.key == "Enter") {
-                if (searchString.startsWith(command_prefix)) {
-                    console.log("command")
-                    let command = searchString.split(' ')[0].substring(1)
-                    let fileName = searchString.split(' ')[1]
-                    console.log(command)
-                    console.log(fileName)
+                if (searchString.trim().startsWith(command_prefix)) {
+                    let command = searchString.trim().split(' ')[0].substring(1)
+                    let fileName = searchString.trim().split(' ')[1]
 
                     if (command == "create") {
-                        createNewFile(fileName).then((value) => {
-                            console.log(value)
-                            if (value) {
-                                setShowCommandWindow(false)
-                            }
-                        })
+                        if (validateCreateInput(fileName)) {
+                            createNewFile(fileName).then((value) => {
+                                console.log(value)
+                                if (value) {
+                                    setShowCommandWindow(false)
+                                }
+                            })
+                        } else {
+                            setCommndMenuError("invalid file name")
+                        }
 
                     } else if (command == "delete") {
                         let name = files[selection];
                         deleteFile(name.path)
                         setShowCommandWindow(false)
-                    } else if (command == "copy") {
+                    } else if (command == "duplicate") {
 
                     }
                 } else {
-                    if (files.length == 0 && searchString != "") createNewFile(searchString)
+                    if (files.length == 0 && searchString.trim() != "") createNewFile(searchString.trim())
                     else {
                         let entry = files[selection];
                         setCurrentFile({ name: entry.name!, path: entry.path })
+                        document.getElementById("")
                     }
                     setShowCommandWindow(false)
                     setSearchString("")
                     setSelection(0)
+                    setSelectedCommandMenuItem(masterList[0])
                 }
             } else if (e.key == "Tab") {
                 e.preventDefault()
-                if (searchString.startsWith(command_prefix)) {
-                    let s = (command_prefix+ files[selection].name).replace(searchString, "")
-                    setSearchString(searchString + s + " ")
-                } else {
-                    let s = (files[selection].name).replace(searchString, "")
-                    setSearchString(searchString + s)
+                if (masterList[selection] != null) {
+                    let split = searchString.split(' ')
+                    let toComplete = split[split.length - 1]
+
+                    setSearchString(searchString.replace(toComplete, '') + masterList[selection])
+                    setSelection(0)
+                    setSelectedCommandMenuItem(masterList[0])
                 }
-                setSelection(0)
             }
 
         }, { once: true })
-
 
         return (
             <div className=" flex left-0 right-0 w-fit m-auto flex-col h-fit z-30">
@@ -431,39 +515,21 @@ function App() {
                             value={searchString}
                         />
                     </div>
-                    <div className="flex flex-col h-full justify-center hover-border-none transition-colors max-h-[50vh] hover:border-zinc-600 bg-slate-800  border-zinc-700">
-                        <div className="flex w-full flex-row" >
-                            <div className="ml-5 w-[50%] block text-left text-zinc-400">
-                                {files.length == 0 && searchString != "" && !searchString.startsWith(command_prefix) ? <div>Create file called: {searchString}</div> : (searchString.startsWith(command_prefix) ? <div>Execute a command</div> : <div> Open a file</div>)}
-                            </div>
-
-                            <div className="mr-5 w-[50%] block text-right text-zinc-400">
-                                {files.length} results
-                            </div>
-                        </div>
-                        <div className="flex flex-col h-full w-full overflow-auto duration-700">
-                            {
-                                files.map((entry: any, index) => {
-                                    return (
-                                        <div className="text-start" id={entry.name}>
-                                            <button
-                                                onClick={() =>
-                                                    setCurrentFile({ name: entry.name, path: entry.path })
-                                                }
-
-                                                className={index == selection ? " h-fit hover:text-zinc-200 bg-zinc-800 border-none focus:border-none focus:outline-none  rounded-none w-full text-start" : "bg-transparent h-fit hover:text-zinc-200 hover:bg-zinc-900 border-none focus:border-none focus:outline-none  rounded-none w-full text-start"}
-                                            >
-                                                {entry.name}
-                                            </button>
-                                        </div>
-                                    );
-                                })}
+                    <div className="flex w-full bg-red-600 text-white" >
+                        <div className="ml-5 w-full block text-left text-zinc-400">
+                            <div className=" w-full text-white">{commandMenuError != "" ? commandMenuError : null}</div>
                         </div>
                     </div>
+
+                    <CommandMenu error={commandMenuError} description={files_list.description} list={files} selection={selectedCommandMenuItem} />
+
+                    <CommandMenu error={commandMenuError} description={command_list.description} list={commands} selection={selectedCommandMenuItem} />
                 </div>
             </div>
         );
-    };
+    }
+
+
 
     return (
         <div>
@@ -556,7 +622,6 @@ function App() {
             </div>
         </div>
     );
+
 }
-
-
 export default App;
