@@ -9,11 +9,15 @@ It contains the absolute bare minimum to be considered a Note-taking app, howeve
 The application in its current state is ***Heavily*** inspired by [Obsidian.md](https://obsidian.md/) (Check it out, it's much better than this project will ever be), the long term intention of the app is not to be a clone of obsidian, currently I am just using it as a guide to help teach myself UI design before taking the application down its own path.
 
 
-### Basic build steps (These are just from memory and are not tested... Sorry!)
-1. Install rust 
-2. Install Tauri using cargo (rusts packet manager) 
-3. Install node and npm (usually comes with node)
-4. Clone this repository 
-5. Navigate to the repo and run the command "npm install"
-6. To start the application run the command "npm run tauri dev"
+
+
+### Basic build instructions
+#### Prerequisites
+Rust (https://www.rust-lang.org/tools/install)
+Node and npm (https://nodejs.org/en/download/)
+
+#### Steps
+4. Clone repository or download release source code
+5. Navigate to the repo and run "npm install"
+6. Use "npm run tauri dev" to run the application in development mode
 

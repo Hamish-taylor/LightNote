@@ -1,6 +1,5 @@
 import {
     Fragment,
-    ReactNode,
     useCallback,
     useEffect,
     useReducer,
@@ -14,7 +13,7 @@ import {
     MdClear,
     MdMinimize,
 } from "react-icons/md";
-import { VscChromeMaximize, VscEdit, VscTrash } from "react-icons/vsc";
+import { VscChromeMaximize} from "react-icons/vsc";
 import {
     readDir,
     FileEntry,
@@ -35,9 +34,6 @@ import { EditorView } from "@codemirror/view";
 
 import { useHotkeys } from 'react-hotkeys-hook'
 import CommandMenu from "./CommandMenu";
-import { search } from "@codemirror/search";
-
-
 
 function TestHarness({ children }: { children?: React.ReactNode }) {
     const [id, forceUpdate] = useReducer((x) => x + 1, 0);
@@ -64,13 +60,11 @@ export const isFileOrFolder = (path: string) => {
     return "folder";
 };
 
-//TODO:
 function App() {
     const [mainFolder, setMainFolder] = useState<string | undefined>(undefined);
     const [allPaths, setAllPaths] = useState<FileEntry[]>([]);
     const [currentFileContent, setCurrentFileContent] = useState("");
     const [wordCount, setWordCount] = useState(0);
-    const [settingsModal, setSettingsModal] = useState(false);
     const [currentFile, setCurrentFile] = useState({ name: "", path: "" });
 
     const [contextMenuSelectedNode, setContextMenuSelectedNode] = useState<HTMLElement | undefined>(undefined)
@@ -112,7 +106,6 @@ function App() {
 
     // const [DOMreloaded, setDOMreloaded] = useState(false);
     const [searchString, setSearchString] = useState("");
-
 
     const [commandMenuError, setCommndMenuError] = useState("")
     const [selection, setSelection] = useState(0);
