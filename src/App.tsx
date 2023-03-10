@@ -110,7 +110,7 @@ function App() {
     // const [DOMreloaded, setDOMreloaded] = useState(false);
     const [searchString, setSearchString] = useState("");
 
-    const [commandMenuError, setCommndMenuError] = useState("")
+    const [commandMenuError, setCommandMenuError] = useState("")
     const [selection, setSelection] = useState(0);
     const [selectedCommandMenuItem, setSelectedCommandMenuItem] = useState("")
 
@@ -150,9 +150,15 @@ function App() {
 
     const saveMetaData = async () => {
         console.log(metaData)
+        let s = metaData
+        let setTags = new Set<string>()
+        s.tags.forEach((t) => {
+            setTags.add(t)
+        })
+        s.tags = Array.from(setTags)
         await writeTextFile(
             settings.mainFolder.value + "\\" + '.metaData',
-            JSON.stringify(metaData, null, 2)
+            JSON.stringify(s, null, 2)
         )
     }
 
@@ -167,7 +173,21 @@ function App() {
         }
 
     }
+    const addTagToFile = (tag: string, fileName: string) => {
+        console.log(metaData.files)
+        console.log(metaData.files[fileName.replace(".md", "")])
+        let name = fileName.replace(".md", "")
+        if (metaData.tags.includes(tag) && !metaData.files[name].tags.includes(tag)) {
+            setMetaData(prev => ({ ...prev, files: { ...prev.files, [name]: { tags: [...prev.files[name].tags, tag] } } }))
+        }
+    }
+    const removeTagFromFile = (tag: string, fileName: string) => {
+        let name = fileName.replace(".md", "")
+        if (metaData.tags.includes(tag) && metaData.files[name].tags.includes(tag)) {
+            setMetaData(prev => ({ ...prev, files: { ...prev.files, [name]: { tags: [...prev.files[name].tags.filter(t => t !== tag)] } } }))
+        }
 
+    }
     const saveSettings = async () => {
         const path = await documentDir();
         await writeTextFile(
@@ -290,7 +310,7 @@ function App() {
         }
         await invoke("delete_file", { path: settings.mainFolder.value + "\\" + name });
         await readFiles();
-        setMetaData(prev => ({ ...prev, files: { ...prev.files, [name.replace('.md',"")]: { tags: [] } } }))
+        setMetaData(prev => ({ ...prev, files: { ...prev.files, [name.replace('.md', "")]: { tags: [] } } }))
     };
 
     const onChange = useCallback(
@@ -320,7 +340,11 @@ function App() {
         items: [
             { name: commandPrefix + "create" },
             { name: commandPrefix + "delete" },
-            { name: commandPrefix + "duplicate" }
+            { name: commandPrefix + "duplicate" },
+            { name: commandPrefix + "addTag" },
+            { name: commandPrefix + "addTagToFile" },
+            { name: commandPrefix + "removeTagFromFile" },
+
         ]
     }
     const filesList = {
@@ -363,21 +387,50 @@ function App() {
             let command = searchString.trim().split(' ')[0].substring(1)
             let fileName = searchString.trim().split(' ')[1]
             if (command == "create" && fileName != undefined) {
-                if (!validFileName(fileName)) setCommndMenuError('invalid file name')
-                else if (fileExists(fileName)) setCommndMenuError('file already exists')
-                else setCommndMenuError("")
+                if (!validFileName(fileName)) setCommandMenuError('invalid file name')
+                else if (fileExists(fileName)) setCommandMenuError('file already exists')
+                else setCommandMenuError("")
             } else if (command == "delete" && fileName != undefined && fileName != "") {
-                if (!anyFileBeginsWith(fileName)) setCommndMenuError('file does not exist')
-                else setCommndMenuError("")
+                if (!anyFileBeginsWith(fileName)) setCommandMenuError('file does not exist')
+                else setCommandMenuError("")
+            } else if (command == "addTagToFile") {
+                if (currentFile.name == "") {
+                    setCommandMenuError('Cannot add tag as no file is open')
+                } else if (metaData.files[currentFile.name.replace(".md", "")].tags.includes(fileName)) {
+                    setCommandMenuError('tag already exists on file')
+
+                } else if (!metaData.tags.includes(fileName)) {
+                    setCommandMenuError("tag does not exist")
+                } else {
+                    setCommandMenuError("")
+                }
+            } else if (command == "addTag") {
+                if (metaData.tags.includes(fileName)) {
+                    setCommandMenuError('tag already exists')
+                } else {
+                    setCommandMenuError("")
+                }
+            } else if (command == "removeTagFromFile") {
+                if (currentFile.name == "") {
+                    setCommandMenuError('Cannot remove tag as no file is open')
+                } else if (!metaData.files[currentFile.name.replace(".md", "")].tags.includes(fileName)) {
+                    setCommandMenuError('tag doesnt exist on the file')
+
+                } else if (!metaData.tags.includes(fileName)) {
+                    setCommandMenuError("tag does not exist")
+                }
+                else {
+                    setCommandMenuError("")
+                }
             } else {
-                setCommndMenuError("")
+                setCommandMenuError("")
             }
         } else {
             //is an open/create file
             if (!validFileName(searchString)) {
-                setCommndMenuError('invalid file name')
+                setCommandMenuError('invalid file name')
             } else {
-                setCommndMenuError("")
+                setCommandMenuError("")
             }
         }
     }, [searchString])
@@ -443,7 +496,8 @@ function App() {
                 })
                 selection > 0 ? setSelection(selection - 1) : setSelection(masterList.length - 1)
                 setSelectedCommandMenuItem(masterList[selection > 0 ? selection - 1 : masterList.length - 1])
-            } else if (e.key == "Enter") {
+            } else if (e.key == "Enter" && commandMenuError == "") {
+
                 if (searchString.trim().startsWith(commandPrefix)) {
                     let command = searchString.trim().split(' ')[0].substring(1)
                     let fileName = searchString.trim().split(' ')[1]
@@ -456,7 +510,7 @@ function App() {
                                 }
                             })
                         } else {
-                            setCommndMenuError("invalid file name")
+                            setCommandMenuError("invalid file name")
                         }
 
                     } else if (command == "delete") {
@@ -465,6 +519,18 @@ function App() {
                         setShowCommandWindow(false)
                     } else if (command == "duplicate") {
 
+                    } else if (command == "addTag") {
+
+                        if (!metaData.tags.includes(fileName)) {
+                            setMetaData(prev => ({ ...prev, tags: [...prev.tags, fileName] }))
+                            setShowCommandWindow(false)
+                        }
+                    } else if (command == "addTagToFile") {
+                        addTagToFile(fileName, currentFile.name)
+                        setShowCommandWindow(false)
+                    } else if (command == "removeTagFromFile") {
+                        removeTagFromFile(fileName, currentFile.name)
+                        setShowCommandWindow(false)
                     }
                 } else {
                     if (files.length == 0 && searchString.trim() != "") createNewFile(searchString.trim())
