@@ -27,7 +27,6 @@
     "@uiw/react-codemirror": "^4.11.4",
     "@uiw/react-md-editor": "^3.14.5",
     "codemirror": "^6.0.1",
-    "daisyui": "^2.20.0",
     "fast-levenshtein": "^3.0.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",

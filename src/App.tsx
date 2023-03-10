@@ -13,7 +13,7 @@ import {
     MdClear,
     MdMinimize,
 } from "react-icons/md";
-import { VscChromeMaximize} from "react-icons/vsc";
+import { VscChromeMaximize } from "react-icons/vsc";
 import {
     readDir,
     FileEntry,
@@ -71,6 +71,11 @@ function App() {
 
     const [showCommandWindow, setShowCommandWindow] = useState(false)
 
+    const [metaData, setMetaData] = useState<any>({
+        tags: [],
+        files: {}
+    })
+
     const [settings, setSettings] = useState({
         editorWidth: {
             name: "Editor Width",
@@ -93,8 +98,6 @@ function App() {
         },
     });
 
-    const renaming = useRef("");
-
     //Setting the window to frameless
     appWindow.setDecorations(false);
 
@@ -111,6 +114,29 @@ function App() {
     const [selection, setSelection] = useState(0);
     const [selectedCommandMenuItem, setSelectedCommandMenuItem] = useState("")
 
+
+    useEffect(() => {
+        loadSettings();
+    }, []);
+
+    useEffect(() => {
+        if (settings.mainFolder.value !== "") {
+            saveSettings();
+            readFiles();
+            loadMetaData()
+        } else {
+        }
+    }, [settings]);
+
+    useEffect(() => {
+        console.log(metaData)
+        if (metaData.files.length != {}) {
+            console.log("SAVING")
+            saveMetaData()
+        }
+    }, [metaData])
+
+
     useHotkeys('control+p', event => {
         event.preventDefault()
         setShowCommandWindow(!showCommandWindow)
@@ -122,18 +148,25 @@ function App() {
         }
     )
 
-    useEffect(() => {
-        loadSettings();
-    }, []);
+    const saveMetaData = async () => {
+        console.log(metaData)
+        await writeTextFile(
+            settings.mainFolder.value + "\\" + '.metaData',
+            JSON.stringify(metaData, null, 2)
+        )
+    }
 
-    useEffect(() => {
-        if (settings.mainFolder.value !== "") {
-            saveSettings();
-            readFiles();
-
-        } else {
+    const loadMetaData = async () => {
+        try {
+            await readTextFile(settings.mainFolder.value + "\\" + '.metaData').then((value) => {
+                setMetaData(JSON.parse(value))
+                console.log(value)
+            })
+        } catch (e) {
+            saveMetaData()
         }
-    }, [settings]);
+
+    }
 
     const saveSettings = async () => {
         const path = await documentDir();
@@ -163,6 +196,7 @@ function App() {
 
     const createNewFile = async (name: string): Promise<boolean> => {
         try {
+            setMetaData(prev => ({ ...prev, files: { ...prev.files, [name]: { tags: [] } } }))
             await writeTextFile(settings.mainFolder.value + "\\" + name + ".md", "");
             await readFiles();
             setCurrentFile({ name: name, path: settings.mainFolder.value + "\\" + name + ".md" });
@@ -256,6 +290,7 @@ function App() {
         }
         await invoke("delete_file", { path: settings.mainFolder.value + "\\" + name });
         await readFiles();
+        setMetaData(prev => ({ ...prev, files: { ...prev.files, [name.replace('.md',"")]: { tags: [] } } }))
     };
 
     const onChange = useCallback(
@@ -457,7 +492,7 @@ function App() {
                     res += " " + masterList[selection]
 
                     setSearchString(res.trim())
-                    setselection(0)
+                    setSelection(0)
                     setSelectedCommandMenuItem(masterList[0])
                 }
             }
