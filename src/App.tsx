@@ -71,11 +71,6 @@ function App() {
 
     const [showCommandWindow, setShowCommandWindow] = useState(false)
 
-    const [metaData, setMetaData] = useState<any>({
-        tags: [],
-        files: {}
-    })
-
     const [settings, setSettings] = useState({
         editorWidth: {
             name: "Editor Width",
@@ -123,18 +118,9 @@ function App() {
         if (settings.mainFolder.value !== "") {
             saveSettings();
             readFiles();
-            loadMetaData()
         } else {
         }
     }, [settings]);
-
-    useEffect(() => {
-        console.log(metaData)
-        if (metaData.files.length != {}) {
-            console.log("SAVING")
-            saveMetaData()
-        }
-    }, [metaData])
 
 
     useHotkeys('control+p', event => {
@@ -149,44 +135,26 @@ function App() {
     )
 
     const saveMetaData = async () => {
-        console.log(metaData)
-        let s = metaData
-        let setTags = new Set<string>()
-        s.tags.forEach((t) => {
-            setTags.add(t)
-        })
-        s.tags = Array.from(setTags)
-        await writeTextFile(
-            settings.mainFolder.value + "\\" + '.metaData',
-            JSON.stringify(s, null, 2)
-        )
-    }
-
-    const loadMetaData = async () => {
-        try {
-            await readTextFile(settings.mainFolder.value + "\\" + '.metaData').then((value) => {
-                setMetaData(JSON.parse(value))
-                console.log(value)
-            })
-        } catch (e) {
-            saveMetaData()
+        console.log(settings.mainFolder.value + "\\" + '.metaData')
+        if (settings.mainFolder.value != "") {
+            invoke('save_config', { path: settings.mainFolder.value + "\\" + '.metaData' })
         }
-
     }
+
+
     const addTagToFile = (tag: string, fileName: string) => {
-        console.log(metaData.files)
-        console.log(metaData.files[fileName.replace(".md", "")])
-        let name = fileName.replace(".md", "")
-        if (metaData.tags.includes(tag) && !metaData.files[name].tags.includes(tag)) {
-            setMetaData(prev => ({ ...prev, files: { ...prev.files, [name]: { tags: [...prev.files[name].tags, tag] } } }))
-        }
+        invoke('add_tag_to_file', { file: fileName.replace('.md', ""), tag: tag })
+        saveMetaData()
+    }
+
+    const addTag = (tag: string) => {
+        console.log("adding tag")
+        invoke("add_tag", { tag: tag })
+        saveMetaData()
     }
     const removeTagFromFile = (tag: string, fileName: string) => {
-        let name = fileName.replace(".md", "")
-        if (metaData.tags.includes(tag) && metaData.files[name].tags.includes(tag)) {
-            setMetaData(prev => ({ ...prev, files: { ...prev.files, [name]: { tags: [...prev.files[name].tags.filter(t => t !== tag)] } } }))
-        }
-
+        invoke('remove_tag_from_file', { file: fileName.replace(".md", ""), tag: tag })
+        saveMetaData()
     }
     const saveSettings = async () => {
         const path = await documentDir();
@@ -214,9 +182,10 @@ function App() {
         }
     };
 
-    const createNewFile = async (name: string): Promise<boolean> => {
+    const createFile = async (name: string): Promise<boolean> => {
         try {
-            setMetaData(prev => ({ ...prev, files: { ...prev.files, [name]: { tags: [] } } }))
+            invoke("add_file", { file: name })
+            saveMetaData()
             await writeTextFile(settings.mainFolder.value + "\\" + name + ".md", "");
             await readFiles();
             setCurrentFile({ name: name, path: settings.mainFolder.value + "\\" + name + ".md" });
@@ -302,22 +271,22 @@ function App() {
     }, [currentFile]);
 
     const deleteFile = async (name: string) => {
-        console.log(currentFile.path + " " + name)
-        if (currentFile.name == name) {
+        console.log(currentFile.name + " " + name)
+        if (currentFile.name === name.replace(".md", "")) {
             console.log("yes")
             setCurrentFile({ path: "", name: "" });
             setCurrentFileContent("");
         }
         await invoke("delete_file", { path: settings.mainFolder.value + "\\" + name });
+        await invoke("remove_file", { file: name.replace(".md", "") })
         await readFiles();
-        setMetaData(prev => ({ ...prev, files: { ...prev.files, [name.replace('.md', "")]: { tags: [] } } }))
     };
 
     const onChange = useCallback(
         async (value: any) => {
             //save the file
 
-            countWords(value);
+            countwords(value);
             await writeTextFile(currentFile.path, value);
 
         },
@@ -381,58 +350,63 @@ function App() {
 
     }, [selectedCommandMenuItem])
     useEffect(() => {
-        setSelectedCommandMenuItem("")
-        if (searchString.startsWith(commandPrefix)) {
-            //is a command
-            let command = searchString.trim().split(' ')[0].substring(1)
-            let fileName = searchString.trim().split(' ')[1]
-            if (command == "create" && fileName != undefined) {
-                if (!validFileName(fileName)) setCommandMenuError('invalid file name')
-                else if (fileExists(fileName)) setCommandMenuError('file already exists')
-                else setCommandMenuError("")
-            } else if (command == "delete" && fileName != undefined && fileName != "") {
-                if (!anyFileBeginsWith(fileName)) setCommandMenuError('file does not exist')
-                else setCommandMenuError("")
-            } else if (command == "addTagToFile") {
-                if (currentFile.name == "") {
-                    setCommandMenuError('Cannot add tag as no file is open')
-                } else if (metaData.files[currentFile.name.replace(".md", "")].tags.includes(fileName)) {
-                    setCommandMenuError('tag already exists on file')
+        const validateCommands = async () => {
+            let metaData = JSON.parse(await invoke("get_config", { path: settings.mainFolder.value + "\\" + ".metaData" }))
+            setSelectedCommandMenuItem("")
+            console.log(metaData)
+            if (searchString.startsWith(commandPrefix)) {
+                //is a command
+                let command = searchString.trim().split(' ')[0].substring(1)
+                let fileName = searchString.trim().split(' ')[1]
+                if (command == "create" && fileName != undefined) {
+                    if (!validFileName(fileName)) setCommandMenuError('invalid file name')
+                    else if (fileExists(fileName)) setCommandMenuError('file already exists')
+                    else setCommandMenuError("")
+                } else if (command == "delete" && fileName != undefined && fileName != "") {
+                    if (!anyFileBeginsWith(fileName)) setCommandMenuError('file does not exist')
+                    else setCommandMenuError("")
+                } else if (command == "addTagToFile") {
+                    if (currentFile.name == "") {
+                        setCommandMenuError('Cannot add tag as no file is open')
+                    } else if (metaData.files[currentFile.name.replace(".md", "")].tags.includes(fileName)) {
+                        setCommandMenuError('tag already exists on file')
 
-                } else if (!metaData.tags.includes(fileName)) {
-                    setCommandMenuError("tag does not exist")
+                    } else if (!metaData.tags.includes(fileName)) {
+                        setCommandMenuError("tag does not exist")
+                    } else {
+                        setCommandMenuError("")
+                    }
+                } else if (command == "addTag") {
+                    if (metaData.tags.includes(fileName)) {
+                        setCommandMenuError('tag already exists')
+                    } else {
+                        setCommandMenuError("")
+                    }
+                } else if (command == "removeTagFromFile") {
+                    if (currentFile.name == "") {
+                        setCommandMenuError('Cannot remove tag as no file is open')
+                    } else if (!metaData.files[currentFile.name.replace(".md", "")].tags.includes(fileName)) {
+                        setCommandMenuError('tag doesnt exist on the file')
+
+                    } else if (!metaData.tags.includes(fileName)) {
+                        setCommandMenuError("tag does not exist")
+                    }
+                    else {
+                        setCommandMenuError("")
+                    }
                 } else {
                     setCommandMenuError("")
                 }
-            } else if (command == "addTag") {
-                if (metaData.tags.includes(fileName)) {
-                    setCommandMenuError('tag already exists')
+            } else {
+                //is an open/create file
+                if (!validFileName(searchString)) {
+                    setCommandMenuError('invalid file name')
                 } else {
                     setCommandMenuError("")
                 }
-            } else if (command == "removeTagFromFile") {
-                if (currentFile.name == "") {
-                    setCommandMenuError('Cannot remove tag as no file is open')
-                } else if (!metaData.files[currentFile.name.replace(".md", "")].tags.includes(fileName)) {
-                    setCommandMenuError('tag doesnt exist on the file')
-
-                } else if (!metaData.tags.includes(fileName)) {
-                    setCommandMenuError("tag does not exist")
-                }
-                else {
-                    setCommandMenuError("")
-                }
-            } else {
-                setCommandMenuError("")
-            }
-        } else {
-            //is an open/create file
-            if (!validFileName(searchString)) {
-                setCommandMenuError('invalid file name')
-            } else {
-                setCommandMenuError("")
             }
         }
+        validateCommands();
     }, [searchString])
 
     useEffect(() => {
@@ -457,7 +431,7 @@ function App() {
         let commands = commandList.items.filter((command: any) => {
             return (command.name).toLowerCase().includes(searchString.trim().toLowerCase())
         })
-        let masterList = []
+        let masterList : any[] = [] 
 
         files.forEach((item) => masterList.push(item.name))
         commands.forEach((item) => masterList.push(item.name))
@@ -504,7 +478,7 @@ function App() {
 
                     if (command == "create") {
                         if (validateCreateInput(fileName)) {
-                            createNewFile(fileName).then((value) => {
+                            createFile(fileName).then((value) => {
                                 if (value) {
                                     setShowCommandWindow(false)
                                 }
@@ -520,11 +494,8 @@ function App() {
                     } else if (command == "duplicate") {
 
                     } else if (command == "addTag") {
-
-                        if (!metaData.tags.includes(fileName)) {
-                            setMetaData(prev => ({ ...prev, tags: [...prev.tags, fileName] }))
-                            setShowCommandWindow(false)
-                        }
+                        addTag(fileName)
+                        setShowCommandWindow(false)
                     } else if (command == "addTagToFile") {
                         addTagToFile(fileName, currentFile.name)
                         setShowCommandWindow(false)
@@ -533,7 +504,7 @@ function App() {
                         setShowCommandWindow(false)
                     }
                 } else {
-                    if (files.length == 0 && searchString.trim() != "") createNewFile(searchString.trim())
+                    if (files.length == 0 && searchString.trim() != "") createFile(searchString.trim())
                     else {
                         let entry = files[selection];
                         setCurrentFile({ name: entry.name!, path: entry.path })
