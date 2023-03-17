@@ -3,7 +3,6 @@ import {
     useCallback,
     useEffect,
     useReducer,
-    useRef,
     useState,
 } from "react";
 import "./App.css";
@@ -71,6 +70,9 @@ function App() {
 
     const [showCommandWindow, setShowCommandWindow] = useState(false)
 
+    const [commands, setCommands] = useState<{ name: string }[]>([])
+    const [files, setFiles] = useState<FileEntry[]>([])
+
     const [settings, setSettings] = useState({
         editorWidth: {
             name: "Editor Width",
@@ -118,6 +120,7 @@ function App() {
         if (settings.mainFolder.value !== "") {
             saveSettings();
             readFiles();
+            invoke("load_config", { path: settings.mainFolder.value + "\\" + ".metadata" })
         } else {
         }
     }, [settings]);
@@ -351,7 +354,11 @@ function App() {
     }, [selectedCommandMenuItem])
     useEffect(() => {
         const validateCommands = async () => {
-            let metaData = JSON.parse(await invoke("get_config", { path: settings.mainFolder.value + "\\" + ".metaData" }))
+            console.log(settings.mainFolder.value)
+            let rawMetadata: string = await invoke("get_config", { path: settings.mainFolder.value + "\\" + ".metaData" })
+            console.log(rawMetadata)
+            let metaData = JSON.parse(rawMetadata)
+
             setSelectedCommandMenuItem("")
             console.log(metaData)
             if (searchString.startsWith(commandPrefix)) {
@@ -370,7 +377,6 @@ function App() {
                         setCommandMenuError('Cannot add tag as no file is open')
                     } else if (metaData.files[currentFile.name.replace(".md", "")].tags.includes(fileName)) {
                         setCommandMenuError('tag already exists on file')
-
                     } else if (!metaData.tags.includes(fileName)) {
                         setCommandMenuError("tag does not exist")
                     } else {
@@ -415,127 +421,179 @@ function App() {
 
     const renderSearch = () => {
         //filter and order items 
+        const something = async () => {
+            let metadata = await JSON.parse(await invoke("get_config", { path: settings.mainFolder.value + "\\" + ".metadata" }))
+            let f = filesList.items.filter((file: any) => {
+                return (
+                    (
+                        (
+                            (file.name!.toLowerCase().includes(searchString.trim().toLowerCase()) && file.name!.toLowerCase().trim() !== currentFile.name.toLowerCase().trim())
+                            || (searchString.startsWith(commandPrefix + "delete") && file.name!.toLowerCase().includes(searchString.trim().toLowerCase().replace(commandPrefix + 'delete', "").trimStart()) && file.name!.toLowerCase() !== searchString.trim().toLowerCase().replace(commandPrefix + 'delete', "").trimStart()
+)
+                        ) &&
+                        isFileOrFolder(file.path) == "file") && file.name!.toLowerCase().trim() != searchString.trim().toLowerCase()
 
-        //filter each list based off the input string
-        let files = filesList.items.filter((file: any) => {
-            return (
-                (file.name!.toLowerCase().includes(searchString.trim().toLowerCase()) || file.name!.toLowerCase().includes(searchString.trim().toLowerCase().replace(commandPrefix + 'delete', "").trimStart())) &&
-                isFileOrFolder(file.path) == "file"
-            );
-        });
+                );
+            });
 
-        files = files.sort((a: any, b: any) => {
-            return a.name!.toLowerCase().localeCompare(b.name!.toLowerCase());
-        });
+            f = f.sort((a: any, b: any) => {
+                return a.name!.toLowerCase().localeCompare(b.name!.toLowerCase());
+            });
 
-        let commands = commandList.items.filter((command: any) => {
-            return (command.name).toLowerCase().includes(searchString.trim().toLowerCase())
-        })
-        let masterList : any[] = [] 
+            let c = commandList.items.filter((command: any) => {
+                return ((command.name).toLowerCase().includes(searchString.trim().toLowerCase()) && command.name!.toLowerCase().trim() != searchString.trim().toLowerCase())
 
-        files.forEach((item) => masterList.push(item.name))
-        commands.forEach((item) => masterList.push(item.name))
+            })
+            console.log(currentFile)
+            if (currentFile.name == "") {
 
-        if (selectedCommandMenuItem === "") setSelectedCommandMenuItem(masterList[selection])
-
-        if (selectedCommandMenuItem == undefined && masterList.length > 0) {
-            setSelectedCommandMenuItem(masterList[0])
-            setSelection(0)
-        }
-
-        if (selection > masterList.length - 1) {
-            setSelection(masterList.length - 1)
-            setSelectedCommandMenuItem(masterList[masterList.length - 1])
-        }
-        //handle key inputs
-        document.addEventListener('keydown', (e) => {
-
-            if (e.key == "ArrowDown") {
-                e.preventDefault()
-                document.getElementById(masterList[(selection < files.length - 1 ? selection + 1 : 0)])?.scrollIntoView({
-                    behavior: 'auto',
-                    block: 'center',
-                    inline: 'center'
-
+                console.log("no file open")
+                c = c.filter((command: any) => {
+                    console.log(command.name != commandPrefix + "addTagToFile")
+                    return command.name !== (commandPrefix + "addTagToFile") && command.name !== (commandPrefix + "removeTagFromFile")
                 })
-                selection < masterList.length - 1 ? setSelection(selection + 1) : setSelection(0);
-                setSelectedCommandMenuItem(masterList[selection < masterList.length - 1 ? selection + 1 : 0])
-            } else if (e.key == "ArrowUp") {
-                e.preventDefault()
-                document.getElementById(masterList[(selection > 0 ? selection - 1 : files.length - 1)])?.scrollIntoView({
-                    behavior: 'auto',
-                    block: 'center',
-                    inline: 'center'
+            }
+            console.log(c)
 
+            //filter each list based off the input string
+            let masterList: any[] = []
+
+            f.forEach((item) => masterList.push(item.name))
+            c.forEach((item) => masterList.push(item.name))
+            if (searchString.startsWith(commandPrefix + "addTagToFile")) {
+                let t = metadata['tags']
+                t = t.filter((tag: string) => {
+                    return tag.trim().toLowerCase().includes(searchString.replace(commandPrefix + "addTagToFile", "").trim().toLowerCase()) && tag.toLowerCase().trim() != searchString.replace(commandPrefix + "addTagToFile", "").trim().toLowerCase()
                 })
-                selection > 0 ? setSelection(selection - 1) : setSelection(masterList.length - 1)
-                setSelectedCommandMenuItem(masterList[selection > 0 ? selection - 1 : masterList.length - 1])
-            } else if (e.key == "Enter" && commandMenuError == "") {
 
-                if (searchString.trim().startsWith(commandPrefix)) {
-                    let command = searchString.trim().split(' ')[0].substring(1)
-                    let fileName = searchString.trim().split(' ')[1]
+                t.forEach((i: any) => {
+                    c.push({ name: i })
+                })
+                t.forEach((i: any) => {
+                    masterList.push(i)
+                })
+            }
+            if (searchString.startsWith(commandPrefix + "removeTagFromFile")) {
+                let t = metadata['files'][currentFile.name.replace(".md", "")]["tags"]
+                t = t.filter((tag: string) => {
+                    return tag.trim().toLowerCase().includes(searchString.replace(commandPrefix + "removeTagFromFile", "").trim().toLowerCase()) && tag.toLowerCase().trim() != searchString.replace(commandPrefix + "removeTagFromFile", "").trim().toLowerCase()
+                })
 
-                    if (command == "create") {
-                        if (validateCreateInput(fileName)) {
-                            createFile(fileName).then((value) => {
-                                if (value) {
-                                    setShowCommandWindow(false)
-                                }
-                            })
-                        } else {
-                            setCommandMenuError("invalid file name")
-                        }
-
-                    } else if (command == "delete") {
-                        let name = masterList[selection];
-                        deleteFile(name)
-                        setShowCommandWindow(false)
-                    } else if (command == "duplicate") {
-
-                    } else if (command == "addTag") {
-                        addTag(fileName)
-                        setShowCommandWindow(false)
-                    } else if (command == "addTagToFile") {
-                        addTagToFile(fileName, currentFile.name)
-                        setShowCommandWindow(false)
-                    } else if (command == "removeTagFromFile") {
-                        removeTagFromFile(fileName, currentFile.name)
-                        setShowCommandWindow(false)
-                    }
-                } else {
-                    if (files.length == 0 && searchString.trim() != "") createFile(searchString.trim())
-                    else {
-                        let entry = files[selection];
-                        setCurrentFile({ name: entry.name!, path: entry.path })
-                        document.getElementById("")
-                    }
-                    setShowCommandWindow(false)
-                    setSearchString("")
-                    setSelection(0)
-                    setSelectedCommandMenuItem(masterList[0])
-                }
-            } else if (e.key == "Tab") {
-                e.preventDefault()
-                if (masterList[selection] != null) {
-                    let split = searchString.split(' ')
-                    let toComplete = split[split.length - 1]
-
-                    let res = ""
-                    split.pop()
-                    split.forEach((s) => {
-                        res += " " + s
-                    })
-                    res += " " + masterList[selection]
-
-                    setSearchString(res.trim())
-                    setSelection(0)
-                    setSelectedCommandMenuItem(masterList[0])
-                }
+                t.forEach((i: any) => {
+                    c.push({ name: i })
+                })
+                t.forEach((i: any) => {
+                    masterList.push(i)
+                })
             }
 
-        }, { once: true })
+            if (selectedCommandMenuItem === "") setSelectedCommandMenuItem(masterList[selection])
 
+            if (selectedCommandMenuItem == undefined && masterList.length > 0) {
+                setSelectedCommandMenuItem(masterList[0])
+                setSelection(0)
+            }
+
+            if (selection > masterList.length - 1) {
+                setSelection(masterList.length - 1)
+                setSelectedCommandMenuItem(masterList[masterList.length - 1])
+            }
+            console.log(f)
+            console.log(files)
+            console.log(c)
+            console.log(commands)
+            if (f.length != files.length) setFiles(f)
+            if (c.length != commands.length) setCommands(c)
+
+            //handle key inputs
+            document.addEventListener('keydown', (e) => {
+
+                if (e.key == "ArrowDown") {
+                    e.preventDefault()
+                    document.getElementById(masterList[(selection < files.length - 1 ? selection + 1 : 0)])?.scrollIntoView({
+                        behavior: 'auto',
+                        block: 'center',
+                        inline: 'center'
+
+                    })
+                    selection < masterList.length - 1 ? setSelection(selection + 1) : setSelection(0);
+                    setSelectedCommandMenuItem(masterList[selection < masterList.length - 1 ? selection + 1 : 0])
+                } else if (e.key == "ArrowUp") {
+                    e.preventDefault()
+                    document.getElementById(masterList[(selection > 0 ? selection - 1 : files.length - 1)])?.scrollIntoView({
+                        behavior: 'auto',
+                        block: 'center',
+                        inline: 'center'
+
+                    })
+                    selection > 0 ? setSelection(selection - 1) : setSelection(masterList.length - 1)
+                    setSelectedCommandMenuItem(masterList[selection > 0 ? selection - 1 : masterList.length - 1])
+                } else if (e.key == "Enter" && commandMenuError == "") {
+
+                    if (searchString.trim().startsWith(commandPrefix)) {
+                        let command = searchString.trim().split(' ')[0].substring(1)
+                        let fileName = searchString.trim().split(' ')[1]
+
+                        if (command == "create") {
+                            if (validateCreateInput(fileName)) {
+                                createFile(fileName).then((value) => {
+                                    if (value) {
+                                        setShowCommandWindow(false)
+                                    }
+                                })
+                            } else {
+                                setCommandMenuError("invalid file name")
+                            }
+
+                        } else if (command == "delete") {
+                            let name = masterList[selection];
+                            deleteFile(name)
+                            setShowCommandWindow(false)
+                        } else if (command == "duplicate") {
+
+                        } else if (command == "addTag") {
+                            addTag(fileName)
+                            setShowCommandWindow(false)
+                        } else if (command == "addTagToFile") {
+                            addTagToFile(fileName, currentFile.name)
+                            setShowCommandWindow(false)
+                        } else if (command == "removeTagFromFile") {
+                            removeTagFromFile(fileName, currentFile.name)
+                            setShowCommandWindow(false)
+                        }
+                    } else {
+                        if (files.length == 0 && searchString.trim() != "") createFile(searchString.trim())
+                        else {
+                            let entry = files[selection];
+                            setCurrentFile({ name: entry.name!, path: entry.path })
+                            document.getElementById("")
+                        }
+                        setShowCommandWindow(false)
+                        setSearchString("")
+                        setSelection(0)
+                        setSelectedCommandMenuItem(masterList[0])
+                    }
+                } else if (e.key == "Tab") {
+                    e.preventDefault()
+                    if (masterList[selection] != null) {
+                        let split = searchString.split(' ')
+
+                        let res = ""
+                        split.pop()
+                        split.forEach((s) => {
+                            res += " " + s
+                        })
+                        res += " " + masterList[selection]
+
+                        setSearchString(res.trim() + " ")
+                        setSelection(0)
+                        setSelectedCommandMenuItem(masterList[0])
+                    }
+                }
+
+            }, { once: true })
+        }
+        something()
         return (
             <div className=" flex left-0 right-0 w-fit m-auto flex-col h-fit z-30">
                 <div className="flex self-center w-1/2 flex-col fixed z-10">
@@ -558,6 +616,7 @@ function App() {
                     <CommandMenu error={commandMenuError} description={filesList.description} list={files} selection={selectedCommandMenuItem} />
 
                     <CommandMenu error={commandMenuError} description={commandList.description} list={commands} selection={selectedCommandMenuItem} />
+
                 </div>
             </div>
         );

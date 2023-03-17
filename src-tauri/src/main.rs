@@ -66,6 +66,7 @@ fn load_config(path: &str, meta_data: State<MD>) {
 
 #[tauri::command]
 fn get_config(meta_data: State<MD>) -> String {
+    println!("{}",meta_data.0.lock().unwrap().to_string());
     meta_data.0.lock().unwrap().to_string()
 }
 
@@ -113,17 +114,27 @@ fn add_tag_to_file(file: &str, tag: &str, meta_data: State<MD>) {
 #[tauri::command]
 fn add_file(file: &str, meta_data: State<MD>) {
     let mut md = meta_data.0.lock().unwrap();
-    let mut parsed = json::parse(&md).unwrap();
+    let parsed = json::parse(&md);
     //add tag into the json
-    if !parsed["files"].contains(file) {
-        println!("adding file: {}",file);
-        //research how to add an object to a json value, chatgpt probably knows
-        let f = json::object! {
-            "tags": []
-        };
-        parsed["files"][file] = f;
-        let st = json::stringify_pretty(parsed, 2);
-        *md = st;
+    //
+    //
+    match parsed {
+        Ok(mut res) => {
+            if !res["files"].contains(file) {
+                println!("adding file: {}",file);
+                //research how to add an object to a json value, chatgpt probably knows
+                let f = json::object! {
+                    "tags": []
+                };
+                res["files"][file] = f;
+                let st = json::stringify_pretty(res, 2);
+                *md = st;
+            }
+
+        }
+        Err(err) => {
+            println!("{}",err)
+        }
     }
 
 }
