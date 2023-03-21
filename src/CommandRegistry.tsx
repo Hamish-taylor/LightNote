@@ -20,7 +20,7 @@ class CommandRegistry {
 
     public getCommand(name: string): Command {
         let c = this.commands.filter((c: Command) => {
-            return c.name == name;
+            return c.name.trim().toLowerCase() == name.trim().toLowerCase();
         })
         console.log(this.commands)
         if (c.length > 1) throw new Error("More than one command has the same name");
