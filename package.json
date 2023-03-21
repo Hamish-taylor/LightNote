@@ -22,7 +22,7 @@
     "@codemirror/view": "^6.1.2",
     "@lezer/common": "^1.0.0",
     "@szhsin/react-menu": "^3.1.1",
-    "@tauri-apps/api": "^1.0.2",
+    "@tauri-apps/api": "^1.2.0",
     "@uiw/codemirror-themes": "^4.11.4",
     "@uiw/react-codemirror": "^4.11.4",
     "@uiw/react-md-editor": "^3.14.5",

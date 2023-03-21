@@ -66,7 +66,6 @@ fn load_config(path: &str, meta_data: State<MD>) {
 
 #[tauri::command]
 fn get_config(meta_data: State<MD>) -> String {
-    println!("{}",meta_data.0.lock().unwrap().to_string());
     meta_data.0.lock().unwrap().to_string()
 }
 
@@ -76,12 +75,11 @@ fn add_tag(tag: &str, meta_data: State<MD>) {
     let mut parsed = json::parse(&md).unwrap();
     //add tag into the json
     if !parsed["tags"].contains(tag) {
-        println!("adding tag: {}",tag);
+        println!("adding tag: {}", tag);
         parsed["tags"].push(tag).expect("could not add tag");
         let st = json::stringify_pretty(parsed, 2);
         *md = st;
     }
-
 }
 
 #[tauri::command]
@@ -100,7 +98,9 @@ fn add_tag_to_file(file: &str, tag: &str, meta_data: State<MD>) {
 
             //add it to the file
             println!("{}", res["files"][file]["tags"]);
-            res["files"][file]["tags"].push(tag).expect("could not add tag to file");
+            res["files"][file]["tags"]
+                .push(tag)
+                .expect("could not add tag to file");
 
             let st = json::stringify_pretty(res, 2);
             println!("{}", st);
@@ -121,7 +121,7 @@ fn add_file(file: &str, meta_data: State<MD>) {
     match parsed {
         Ok(mut res) => {
             if !res["files"].contains(file) {
-                println!("adding file: {}",file);
+                println!("adding file: {}", file);
                 //research how to add an object to a json value, chatgpt probably knows
                 let f = json::object! {
                     "tags": []
@@ -130,13 +130,11 @@ fn add_file(file: &str, meta_data: State<MD>) {
                 let st = json::stringify_pretty(res, 2);
                 *md = st;
             }
-
         }
         Err(err) => {
-            println!("{}",err)
+            println!("{}", err)
         }
     }
-
 }
 #[tauri::command]
 fn remove_tag_from_file(file: &str, tag: &str, meta_data: State<MD>) {
@@ -149,12 +147,14 @@ fn remove_tag_from_file(file: &str, tag: &str, meta_data: State<MD>) {
             //well
             println!("Removing tag: {} from file: {}", tag, file);
             if !res["tags"].contains(tag) || !res["files"][file]["tags"].contains(tag) {
+                println!("Aborting removing tag");
                 return;
             }
 
             //add it to the file
             println!("{}", res["files"][file]["tags"]);
-            res["files"][file]["tags"].remove(tag);
+            let index = res["files"][file]["tags"].members().position(|t| t == tag).unwrap();
+            res["files"][file]["tags"].array_remove(index);
             let st = json::stringify_pretty(res, 2);
             println!("{}", st);
             *md = st;
@@ -173,7 +173,7 @@ fn remove_file(file: &str, meta_data: State<MD>) {
     match parsed {
         Ok(mut res) => {
             println!("Removing file: {}", file);
-             
+
             res["files"][file]["tags"].clear();
             let st = json::stringify_pretty(res, 2);
             println!("{}", st);
@@ -194,12 +194,14 @@ fn save_config(path: &str, meta_data: State<MD>) {
         Ok(res) => {
             let st = json::stringify_pretty(res, 2);
             let stt = st.as_str();
-            match fs::write(path, stt) {
-                Ok(_) => {
-                    println!("SAVED: {}", stt);
-                }
-                Err(err) => {
-                    println!("{err} in path {}", path)
+            if (stt != "null") {
+                match fs::write(path, stt) {
+                    Ok(_) => {
+                        println!("SAVED: {}", stt);
+                    }
+                    Err(err) => {
+                        println!("{err} in path {}", path)
+                    }
                 }
             }
         }
